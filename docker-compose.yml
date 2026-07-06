@@ -1,0 +1,103 @@
+# PayLab local dev stack — Phase 0 gate: OceanBase single node + SOFARegistry + five SOFABoot
+# services registering into the registry. `docker compose up -d --build` from repo root.
+name: paylab
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  depends_on:
+    sofa-registry:
+      condition: service_healthy
+
+services:
+  oceanbase:
+    image: oceanbase/oceanbase-ce:4.3.5-lts
+    restart: unless-stopped
+    environment:
+      MODE: mini
+      OB_SYS_PASSWORD: ${OB_SYS_PASSWORD:-paylab-sys-dev}
+      OB_TENANT_NAME: paylab
+      OB_TENANT_PASSWORD: ${OB_TENANT_PASSWORD:-paylab-dev}
+      OB_DATABASE: paylab
+    ports:
+      - "2881:2881"
+    volumes:
+      - ob-data:/root/ob
+      - ./deploy/compose/init-sql:/root/boot/init.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "obclient -h127.0.0.1 -P2881 -uroot@paylab -p\"${OB_TENANT_PASSWORD:-paylab-dev}\" -Dpaylab -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 360s
+
+  sofa-registry:
+    build: deploy/docker/sofa-registry
+    restart: unless-stopped
+    ports:
+      - "9600:9600" # session bolt — client data connection
+      - "9603:9603" # session http — server-list lookup + ops/digest API
+      - "9615:9615" # meta
+      - "9622:9622" # data
+
+  payment-gateway:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: deploy/docker/service/Dockerfile
+      args: { MODULE: payment-gateway }
+    environment:
+      PAYLAB_REGISTRY_ENDPOINT: sofa-registry:9603
+      HEALTH_PORT: 8080
+    ports:
+      - "8080:8080"
+
+  risk-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: deploy/docker/service/Dockerfile
+      args: { MODULE: risk-service }
+    environment:
+      PAYLAB_REGISTRY_ENDPOINT: sofa-registry:9603
+      HEALTH_PORT: 8081
+    ports:
+      - "8081:8081"
+
+  fx-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: deploy/docker/service/Dockerfile
+      args: { MODULE: fx-service }
+    environment:
+      PAYLAB_REGISTRY_ENDPOINT: sofa-registry:9603
+      HEALTH_PORT: 8082
+    ports:
+      - "8082:8082"
+
+  ledger-service:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: deploy/docker/service/Dockerfile
+      args: { MODULE: ledger-service }
+    environment:
+      PAYLAB_REGISTRY_ENDPOINT: sofa-registry:9603
+      HEALTH_PORT: 8083
+    ports:
+      - "8083:8083"
+
+  settlement-recon-job:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: deploy/docker/service/Dockerfile
+      args: { MODULE: settlement-recon-job }
+    environment:
+      PAYLAB_REGISTRY_ENDPOINT: sofa-registry:9603
+      HEALTH_PORT: 8084
+    ports:
+      - "8084:8084"
+
+volumes:
+  ob-data:

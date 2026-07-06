@@ -1,0 +1,28 @@
+# Build
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Node (Phase 3)
+node_modules/
+dist/
+.umi/
+.umi-production/
+
+# Local env / secrets — commit .env.example only
+.env
+*.local
+
+# OS / misc
+.DS_Store
+logs/
+*.log

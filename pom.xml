@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- SOFABoot BOM chain: sofaboot-dependencies -> spring-boot-dependencies. See versions.md. -->
+    <parent>
+        <groupId>com.alipay.sofa</groupId>
+        <artifactId>sofaboot-dependencies</artifactId>
+        <version>4.6.0</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>io.paylab</groupId>
+    <artifactId>paylab-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>PayLab :: Parent</name>
+    <description>Minimum-viable cross-border payment platform on the SOFAStack / Alibaba OSS ecosystem</description>
+
+    <modules>
+        <module>libs/paylab-common</module>
+        <module>libs/paylab-rpc-api</module>
+        <module>services/payment-gateway</module>
+        <module>services/risk-service</module>
+        <module>services/fx-service</module>
+        <module>services/ledger-service</module>
+        <module>services/settlement-recon-job</module>
+    </modules>
+
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- SOFARPC starter line for SOFABoot 4.x / Spring Boot 3.x (sofa-rpc 5.14.x targets Boot 2 / JDK 8) -->
+        <rpc.sofa.boot.version>6.0.4</rpc.sofa.boot.version>
+        <!-- BOM pins 6.1.8 which is absent from Maven Central; 6.3.0 is the nearest published OSS
+             client and the v6 registry wire protocol is compatible across the line (server: 6.1.9) -->
+        <sofa.registry.version>6.3.0</sofa.registry.version>
+        <spotless.version>2.44.5</spotless.version>
+        <!-- Hessian serialization + bolt need reflective access on JDK 17+ -->
+        <paylab.add.opens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/sun.security.action=ALL-UNNAMED</paylab.add.opens>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.paylab</groupId>
+                <artifactId>paylab-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.paylab</groupId>
+                <artifactId>paylab-rpc-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alipay.sofa</groupId>
+                <artifactId>rpc-sofa-boot-starter</artifactId>
+                <version>${rpc.sofa.boot.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <argLine>${paylab.add.opens}</argLine>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <java>
+                        <palantirJavaFormat/>
+                        <removeUnusedImports/>
+                        <importOrder/>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotless-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

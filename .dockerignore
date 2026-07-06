@@ -1,0 +1,10 @@
+**/target
+**/node_modules
+.git
+.idea
+*.iml
+.env
+deploy/docker/sofa-registry
+docs
+runbooks
+perf

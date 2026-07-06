@@ -1,0 +1,29 @@
+# Phase 0 scope: lint + test. Grows into the full DevSecOps pipeline in Phase 4
+# (SBOM -> vuln scan -> cosign -> push -> terraform gate -> helm -> smoke).
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      # spotless:check is bound to verify — lint and tests gate the build together
+      - name: Build, lint, test
+        run: mvn -B -ntp verify
+
+  compose-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker-compose.yml
+        run: docker compose config -q
