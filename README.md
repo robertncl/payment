@@ -58,7 +58,9 @@ docker compose up -d --build
 docker compose ps
 
 # proof-of-registration: each service publishes io.paylab.api.PingFacade into SOFARegistry
-curl -s "http://localhost:9603/digest/data/query?dataInfoId=io.paylab.api.PingFacade%23%40%23DEFAULT%23%40%23DEFAULT_GROUP"
+curl -s "http://localhost:9603/digest/getDataInfoIdList"
+#   -> ["io.paylab.api.PingFacade:1.0@DEFAULT#@#DEFAULT_INSTANCE_ID#@#SOFA"]
+./scripts/verify-phase0.sh   # full gate check (registry roles, OB canary, 5 services, 5 publishers)
 
 # service health
 curl -s http://localhost:8080/actuator/health   # payment-gateway (risk 8081, fx 8082, ledger 8083, recon 8084)

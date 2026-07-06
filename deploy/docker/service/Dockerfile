@@ -13,7 +13,7 @@ ARG MODULE
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 paylab
+    && useradd --system --uid 10001 --create-home paylab
 
 COPY --from=build /src/services/${MODULE}/target/${MODULE}-*.jar /app/app.jar
 
