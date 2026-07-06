@@ -31,8 +31,6 @@
         <java.version>17</java.version>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- SOFARPC starter line for SOFABoot 4.x / Spring Boot 3.x (sofa-rpc 5.14.x targets Boot 2 / JDK 8) -->
-        <rpc.sofa.boot.version>6.0.4</rpc.sofa.boot.version>
         <!-- BOM pins 6.1.8 which is absent from Maven Central; 6.3.0 is the nearest published OSS
              client and the v6 registry wire protocol is compatible across the line (server: 6.1.9) -->
         <sofa.registry.version>6.3.0</sofa.registry.version>
@@ -53,11 +51,9 @@
                 <artifactId>paylab-rpc-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>com.alipay.sofa</groupId>
-                <artifactId>rpc-sofa-boot-starter</artifactId>
-                <version>${rpc.sofa.boot.version}</version>
-            </dependency>
+            <!-- rpc-sofa-boot-starter is BOM-managed at ${sofa.boot.version}. Do NOT pin the
+                 5.5.x/6.0.x lines from Central metadata: those are SOFABoot 3 / Spring Boot 2 /
+                 JDK 8 artifacts whose transitive infra/log starters break on this classpath. -->
         </dependencies>
     </dependencyManagement>
 

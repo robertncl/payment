@@ -18,8 +18,8 @@ then propagate; record any compatibility surprise as an ADR.
 | Component | Version | Source | Notes |
 |---|---|---|---|
 | SOFABoot (`sofaboot-dependencies`) | **4.6.0** | [sofastack/sofa-boot](https://github.com/sofastack/sofa-boot/releases) | Parent BOM of this repo. Spring Boot 3.x line, JDK 17+ |
-| Spring Boot (via SOFABoot BOM) | _resolved by BOM — see build note below_ | — | Never overridden locally |
-| SOFARPC starter (`rpc-sofa-boot-starter`) | **6.0.4** | [sofastack/rpc-sofa-boot](https://github.com/sofastack/rpc-sofa-boot) | The Boot-3 RPC starter line. NOT `sofa-rpc` 5.14.x (that line is Spring Boot 2 / JDK 8) |
+| Spring Boot (via SOFABoot BOM) | **3.5.6** (resolved, never overridden locally) | — | Verified via `dependency:tree` |
+| SOFARPC starter (`rpc-sofa-boot-starter`) | **4.6.0** (BOM-managed `${sofa.boot.version}`, wraps `sofa-rpc-all` **5.13.4**) | [sofastack/sofa-boot](https://github.com/sofastack/sofa-boot/tree/v4.6.0/sofa-boot-project/sofa-boot-starters/rpc-sofa-boot-starter) | ⚠️ Trap: Central's `maven-metadata.xml` for this artifactId lists only 5.5.3/6.0.x and calls 6.0.4 `<latest>` — those are **SOFABoot 3 / Spring Boot 2 / JDK 8** artifacts (parent `sofaboot-dependencies:3.1.4`) whose transitive `infra-sofa-boot-starter:3.1.4` + `log-sofa-boot-starter:1.0.18` NoClassDefFoundError against `sofa-common-tools` 2.x. Never pin this artifact; let the SOFABoot BOM resolve it |
 | SOFABolt | 1.6.10 | managed by SOFABoot BOM | RPC transport |
 | SOFATracer (`tracer-core`) | 4.0.2 | managed by SOFABoot BOM | OTLP bridge wired in Phase 1+ |
 | SOFARegistry **server** | **6.1.9** (`registry-all.tgz`) | [sofastack/sofa-registry](https://github.com/sofastack/sofa-registry/releases/tag/v6.1.9) | Runs on JDK 8 in-container (`eclipse-temurin:8-jre-noble`); integration/dev mode with embedded H2 |
