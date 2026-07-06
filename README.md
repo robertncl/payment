@@ -67,7 +67,36 @@ curl -s http://localhost:8080/actuator/health   # payment-gateway (risk 8081, fx
 
 # dev loop without docker
 mvn -B verify          # build + unit tests + spotless lint  (mvn spotless:apply to fix format)
+
+# e2e gate (Phase 1): lifecycle tests against the running stack (ADR-0003)
+./scripts/wait-healthy.sh 7 600 && mvn -Pe2e -pl e2e-tests -am test
 ```
+
+### Payment API (Phase 1)
+
+Every mutating call requires an `Idempotency-Key` header; replays return the original
+response with `X-Idempotent-Replay: true`. Every response carries `X-PayLab-Trace-Id`.
+
+```bash
+# create (risk check stubbed as auto-approve until Phase 2) -> RISK_APPROVED
+curl -s -X POST localhost:8080/api/payments \
+  -H 'Content-Type: application/json' -H "Idempotency-Key: demo-$RANDOM" \
+  -d '{"payerId":"payer-1","merchantId":"merchant-1","sourceCurrency":"SGD","targetCurrency":"MYR","amount":100.0000}'
+
+# capture: locks a 60s fx quote, posts balanced double-entry legs, -> CAPTURED
+curl -s -X POST localhost:8080/api/payments/<id>/capture -H "Idempotency-Key: cap-$RANDOM"
+
+# refund (reversing ledger entry, -> REFUNDED), detail, timeline, ledger proof
+curl -s -X POST localhost:8080/api/payments/<id>/refund -H "Idempotency-Key: ref-$RANDOM"
+curl -s localhost:8080/api/payments/<id>
+curl -s localhost:8080/api/payments/<id>/events
+curl -s localhost:8080/api/trial-balance          # balanced:true, nets 0.0000 per currency
+```
+
+Capture posts five legs that net to zero per currency (`amount` A in source ccy, fee F,
+target T = round4(A×rate)): payer wallet **DR A+F** / fee revenue **CR F** / FX P&L **CR A**
+(source ccy) and FX P&L **DR T** / settlement clearing **CR T** (target ccy). The EOD sweep
+(Phase 3) moves clearing → merchant payable.
 
 Tear down: `docker compose down -v` (`-v` drops the OceanBase data volume).
 
@@ -89,8 +118,8 @@ versions.md           single source of truth for every pinned version
 | Phase | Gate | Status |
 |---|---|---|
 | 0 — Skeleton | compose up: OceanBase + empty SOFABoot services registered in SOFARegistry | ✅ done |
-| 1 — Payment core | e2e happy path + idempotency replay green | ⏳ next |
-| 2 — Risk + Seata | forced-rollback test + k6 latency targets | — |
+| 1 — Payment core | e2e happy path + idempotency replay green | ✅ done |
+| 2 — Risk + Seata | forced-rollback test + k6 latency targets | ⏳ next |
 | 3 — Frontend + recon | portal shows payment e2e; recon clean | — |
 | 4 — Cloud out | same Helm release healthy on GKE + ACK | — |
 | 5 — Stretch | MOSN ingress, burn-rate drill, chaos | — |

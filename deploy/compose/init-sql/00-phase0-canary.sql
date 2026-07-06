@@ -1,5 +1,12 @@
 -- Executed by the oceanbase-ce image after tenant bootstrap (mounted at /root/boot/init.d).
--- Phase 0 canary only; real schemas (payments, ledger, outbox) arrive in Phase 1 migrations.
+-- NOTE: init.d only runs on first bootstrap of the ob-data volume. On an existing volume,
+-- apply manually: docker compose exec oceanbase obclient -uroot@paylab -p... < this file.
+
+-- Service-owned databases (schema-per-service; tables come from each service's Flyway).
+CREATE DATABASE IF NOT EXISTS paylab_gateway;
+CREATE DATABASE IF NOT EXISTS paylab_ledger;
+
+-- Phase 0 canary (health/gate check target).
 CREATE TABLE IF NOT EXISTS phase0_canary (
     id INT PRIMARY KEY,
     note VARCHAR(64) NOT NULL,

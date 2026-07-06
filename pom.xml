@@ -25,6 +25,7 @@
         <module>services/fx-service</module>
         <module>services/ledger-service</module>
         <module>services/settlement-recon-job</module>
+        <module>e2e-tests</module>
     </modules>
 
     <properties>
