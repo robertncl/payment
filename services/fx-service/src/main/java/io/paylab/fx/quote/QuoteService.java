@@ -30,6 +30,11 @@ public class QuoteService {
         this.clock = clock;
     }
 
+    /**
+     * Freezes the current table rate into a quote valid for {@link #TTL}. The gateway locks a
+     * quote at capture time so the rate written to the payment and the rate the ledger posts
+     * at are the same number, even if the table changes in between.
+     */
     public FxQuote lock(LockQuoteRequest request) {
         if (request == null
                 || request.getAmount() == null
@@ -61,6 +66,7 @@ public class QuoteService {
         return quote;
     }
 
+    /** Housekeeping sweep; {@link #get} already treats expired quotes as absent. */
     @Scheduled(fixedDelay = 30_000)
     void evictExpired() {
         Instant now = clock.instant();

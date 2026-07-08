@@ -51,6 +51,19 @@ public class PostingService {
         }
     }
 
+    /**
+     * Books the capture as one balanced journal entry, idempotent per payment: if a CAPTURE
+     * entry already exists it is returned with {@code alreadyPosted=true} and nothing is
+     * written. The entry has five legs across two currencies:
+     * <pre>
+     * source ccy:  DEBIT  payer wallet        amount + fee   (payer pays principal + fee)
+     *              CREDIT fee revenue         fee            (house keeps the fee)
+     *              CREDIT fx p&amp;l              amount         (house takes in source funds)
+     * target ccy:  DEBIT  fx p&amp;l              targetAmount   (house pays out converted funds)
+     *              CREDIT settlement clearing targetAmount   (awaiting merchant settlement)
+     * </pre>
+     * Each currency nets to zero independently; the FX spread stays behind in fx p&amp;l.
+     */
     @Transactional
     public PostingResult postCapture(CapturePostingCommand cmd) {
         validateCapture(cmd);
@@ -87,6 +100,11 @@ public class PostingService {
         return insertEntry(cmd.getPaymentId(), ENTRY_CAPTURE, cmd.getFxQuoteId(), lines);
     }
 
+    /**
+     * Books a full refund by loading the original CAPTURE legs and flipping each direction —
+     * a compensating REFUND entry, never an update or delete of the capture. Idempotent per
+     * payment; fails if no CAPTURE entry exists to reverse.
+     */
     @Transactional
     public PostingResult postRefund(String paymentId) {
         Optional<String> existingRefund = findEntry(paymentId, ENTRY_REFUND);
@@ -102,6 +120,11 @@ public class PostingService {
         return insertEntry(paymentId, ENTRY_REFUND, null, reversed);
     }
 
+    /**
+     * Aggregates every journal line into per-account, per-currency debit/credit totals and
+     * reports whether each currency nets to zero — the system-wide health check that the
+     * double-entry invariant holds across all postings ever made.
+     */
     @Transactional(readOnly = true)
     public TrialBalanceReport trialBalance() {
         List<TrialBalanceLine> lines = jdbc.query(
@@ -134,6 +157,11 @@ public class PostingService {
         return new TrialBalanceReport(Instant.now(), lines, netByCurrency, balanced);
     }
 
+    /**
+     * The ledger re-checks the caller's arithmetic (targetAmount must equal round4(amount ×
+     * fxRate)) rather than trusting the gateway — a mismatch means a bug upstream and must
+     * not reach the books.
+     */
     private void validateCapture(CapturePostingCommand cmd) {
         if (cmd.getAmount() == null || cmd.getAmount().signum() <= 0) {
             throw new IllegalArgumentException("amount must be positive");
@@ -148,6 +176,7 @@ public class PostingService {
         }
     }
 
+    /** Idempotency lookup: (payment_id, entry_type) identifies a posting uniquely. */
     private Optional<String> findEntry(String paymentId, String entryType) {
         List<String> ids = jdbc.queryForList(
                 "SELECT id FROM journal_entries WHERE payment_id = ? AND entry_type = ?",
@@ -157,6 +186,7 @@ public class PostingService {
         return ids.stream().findFirst();
     }
 
+    /** Reloads an entry's legs from the database (used to derive refund reversals). */
     private List<JournalLine> loadLines(String entryId) {
         return jdbc.query(
                 "SELECT account_id, currency, direction, amount FROM journal_lines WHERE entry_id = ? ORDER BY id",
@@ -168,6 +198,11 @@ public class PostingService {
                 entryId);
     }
 
+    /**
+     * Appends the entry header plus its legs in the surrounding transaction. The unique key
+     * on (payment_id, entry_type) is the last line of defense against concurrent duplicates:
+     * the losing racer returns the winner's entry as already-posted instead of double-booking.
+     */
     private PostingResult insertEntry(String paymentId, String entryType, String fxQuoteId, List<JournalLine> lines) {
         String entryId = "ent_" + UUID.randomUUID();
         Timestamp now = Timestamp.from(Instant.now());
@@ -195,6 +230,7 @@ public class PostingService {
         return new PostingResult(entryId, false);
     }
 
+    /** Lazily creates ledger accounts on first use — there is no separate onboarding flow. */
     private void ensureAccount(String id, String type, String ownerRef) {
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM accounts WHERE id = ?", Integer.class, id);
         if (count != null && count == 0) {

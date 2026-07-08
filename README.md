@@ -43,7 +43,9 @@ flowchart LR
 
 Payment lifecycle: `CREATED → RISK_APPROVED → CAPTURED → SETTLED` with branches
 `RISK_DECLINED`, `FAILED`, `REFUNDED`. Capture/refund state change + ledger posting are
-atomic via Seata (Phase 2).
+atomic via Seata (Phase 2). The end-to-end processing flow — state machine, idempotency,
+FX quote lock, ledger legs, outbox — is documented in
+[docs/payment-flow.md](docs/payment-flow.md).
 
 ## Quickstart (local)
 

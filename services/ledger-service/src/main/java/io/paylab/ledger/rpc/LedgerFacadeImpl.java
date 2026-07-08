@@ -9,6 +9,7 @@ import io.paylab.api.ledger.TrialBalanceReport;
 import io.paylab.ledger.journal.PostingService;
 import org.springframework.stereotype.Component;
 
+/** SOFARPC (bolt) endpoint for ledger postings; thin delegate to {@link PostingService}. */
 @Component
 @SofaService(interfaceType = LedgerFacade.class, bindings = @SofaServiceBinding(bindingType = "bolt"))
 public class LedgerFacadeImpl implements LedgerFacade {

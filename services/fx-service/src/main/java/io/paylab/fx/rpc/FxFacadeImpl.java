@@ -8,6 +8,7 @@ import io.paylab.api.fx.LockQuoteRequest;
 import io.paylab.fx.quote.QuoteService;
 import org.springframework.stereotype.Component;
 
+/** SOFARPC (bolt) endpoint for FX quotes; thin delegate to {@link QuoteService}. */
 @Component
 @SofaService(interfaceType = FxFacade.class, bindings = @SofaServiceBinding(bindingType = "bolt"))
 public class FxFacadeImpl implements FxFacade {

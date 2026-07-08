@@ -25,6 +25,11 @@ public class OutboxRelay {
         this.outbox = outbox;
     }
 
+    /**
+     * Polls up to 50 unpublished outbox rows every second, "publishes" each (a log line for
+     * now), and marks them published. Publish and mark share one transaction, so a crash
+     * mid-batch re-delivers the whole batch on the next tick — consumers must deduplicate.
+     */
     @Scheduled(fixedDelayString = "${paylab.outbox.poll-ms:1000}")
     @Transactional
     public void drain() {

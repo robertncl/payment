@@ -19,10 +19,16 @@ public final class PaymentStateMachine {
             PaymentStatus.FAILED, Set.of(),
             PaymentStatus.REFUNDED, Set.of());
 
+    /** True when {@code from → to} is an edge in the lifecycle graph above. */
     public static boolean canTransition(PaymentStatus from, PaymentStatus to) {
         return ALLOWED.getOrDefault(from, Set.of()).contains(to);
     }
 
+    /**
+     * Guard used before any side effect of a transition: throws {@link
+     * IllegalTransitionException} (mapped to HTTP 409) instead of returning false, so callers
+     * cannot forget to check.
+     */
     public static void assertTransition(PaymentStatus from, PaymentStatus to) {
         if (!canTransition(from, to)) {
             throw new IllegalTransitionException(from, to);

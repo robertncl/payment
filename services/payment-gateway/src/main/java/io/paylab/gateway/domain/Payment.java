@@ -61,6 +61,7 @@ public class Payment {
 
     protected Payment() {}
 
+    /** New payment starts in CREATED; fee is fixed here, FX fields stay null until capture. */
     public Payment(
             String id,
             String payerId,
@@ -89,6 +90,7 @@ public class Payment {
         this.updatedAt = now;
     }
 
+    /** Records the FX terms the capture executed at, for audit and reconciliation. */
     public void attachCapture(String fxQuoteId, BigDecimal fxRate, BigDecimal targetAmount) {
         this.fxQuoteId = fxQuoteId;
         this.fxRate = fxRate;

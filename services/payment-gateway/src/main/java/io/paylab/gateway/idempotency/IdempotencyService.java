@@ -20,9 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class IdempotencyService {
 
+    /** Result of {@link #begin}: either run the business logic or return the stored response. */
     public sealed interface Outcome {
+        /** The key is new (or newly claimed) — the caller must execute the request. */
         record FirstCall() implements Outcome {}
 
+        /** The key already completed — return this stored response verbatim, do not re-execute. */
         record Replay(int httpStatus, String responseBody) implements Outcome {}
     }
 
@@ -44,6 +47,16 @@ public class IdempotencyService {
         this.repository = repository;
     }
 
+    /**
+     * Claims the idempotency key in its own committed transaction (REQUIRES_NEW) before any
+     * business logic runs. Four possible outcomes: (1) key is new — the row is inserted with
+     * no response yet and {@link Outcome.FirstCall} is returned; (2) the insert races a
+     * concurrent duplicate — the loser falls through and is treated like an existing key;
+     * (3) the key exists but was used for a different endpoint/body — {@link
+     * ConflictException} (422), keys must not be reused; (4) the key exists with a stored
+     * response — {@link Outcome.Replay}, or {@link InFlightException} (409) if the original
+     * call has not finished yet.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Outcome begin(String key, String endpoint, String requestHash) {
         Optional<IdempotencyRecord> existing = repository.findById(key);
@@ -65,6 +78,10 @@ public class IdempotencyService {
         return new Outcome.Replay(record.getHttpStatus(), record.getResponseBody());
     }
 
+    /**
+     * Stores the successful response against the key, turning future {@link #begin} calls
+     * into replays. Committed in its own transaction after the business result is known.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void complete(String key, int httpStatus, String responseBody, String paymentId) {
         IdempotencyRecord record = repository.findById(key).orElseThrow();
@@ -78,6 +95,7 @@ public class IdempotencyService {
         repository.deleteById(key);
     }
 
+    /** Hex SHA-256 of the canonical request string; used to detect key reuse with a different body. */
     public static String sha256(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

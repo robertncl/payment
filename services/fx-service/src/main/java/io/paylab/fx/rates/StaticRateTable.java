@@ -28,6 +28,7 @@ public class StaticRateTable {
 
     private static final int RATE_SCALE = 10;
 
+    /** Whether the currency is one of the five lab corridor currencies. */
     public boolean supports(String currency) {
         return currency != null && CURRENCIES.contains(currency);
     }

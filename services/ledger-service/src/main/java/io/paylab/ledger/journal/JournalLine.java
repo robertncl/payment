@@ -19,10 +19,12 @@ public record JournalLine(String accountId, String currency, Direction direction
         }
     }
 
+    /** Debit as positive, credit as negative — the convention balance checks sum over. */
     public BigDecimal signedAmount() {
         return direction == Direction.DEBIT ? amount : amount.negate();
     }
 
+    /** Same account/currency/amount with the direction flipped; refunds are built from these. */
     public JournalLine reversed() {
         return new JournalLine(
                 accountId, currency, direction == Direction.DEBIT ? Direction.CREDIT : Direction.DEBIT, amount);

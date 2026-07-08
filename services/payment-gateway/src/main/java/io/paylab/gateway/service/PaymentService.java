@@ -56,6 +56,14 @@ public class PaymentService {
         this.mapper = mapper;
     }
 
+    /**
+     * Step 1 of the lifecycle: validates the request (supported ISO currencies, cross-border
+     * only, positive DECIMAL(20,4) amount), then in a single local transaction persists the
+     * payment in CREATED, auto-approves it to RISK_APPROVED (Phase 1 risk stub), records both
+     * transitions as {@link PaymentEvent} rows, and enqueues a {@code payment.created} outbox
+     * event. The fee is fixed at creation time by {@link FeePolicy}; no FX or ledger work
+     * happens yet — money only moves at capture.
+     */
     public Payment create(
             String payerId, String merchantId, String sourceCurrency, String targetCurrency, BigDecimal amount) {
         Money.requireSupportedCurrency(sourceCurrency);
@@ -95,6 +103,20 @@ public class PaymentService {
         });
     }
 
+    /**
+     * Step 2: moves the money. Runs in three phases, deliberately in this order (ADR-0002):
+     * <ol>
+     *   <li>Guard — reject the capture up front if the payment is not in a state that allows
+     *       RISK_APPROVED → CAPTURED, before any remote side effect.</li>
+     *   <li>Remote side effects — lock a 60s FX quote (captures always reference a locked
+     *       quote, never a live rate), compute the target amount from it, and post the
+     *       double-entry capture to the ledger. The ledger call is idempotent per
+     *       (paymentId, CAPTURE), so a crash after this point is healed by client retry.</li>
+     *   <li>Local commit — re-read the payment inside a transaction (a concurrent capture may
+     *       have won the race; if so return it as-is), transition to CAPTURED, attach the FX
+     *       details, append the audit event, and enqueue {@code payment.captured}.</li>
+     * </ol>
+     */
     public Payment capture(String paymentId) {
         Payment payment = get(paymentId);
         // reject illegal transitions before any side effect
@@ -138,6 +160,12 @@ public class PaymentService {
         });
     }
 
+    /**
+     * Full refund of a CAPTURED payment. Same ordering as {@link #capture}: the ledger posts
+     * the reversal first (it re-derives the reversed legs from the original CAPTURE entry, so
+     * no amounts are passed), then the local CAPTURED → REFUNDED transition commits. Both
+     * sides are idempotent, so a retry after a mid-flight crash converges.
+     */
     public Payment refund(String paymentId) {
         Payment payment = get(paymentId);
         PaymentStateMachine.assertTransition(payment.getStatus(), PaymentStatus.REFUNDED);
@@ -162,12 +190,14 @@ public class PaymentService {
         });
     }
 
+    /** Loads a payment or translates absence into an HTTP 404. */
     public Payment get(String paymentId) {
         return payments.findById(paymentId)
                 .orElseThrow(() -> new ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "payment not found: " + paymentId));
     }
 
+    /** Newest-first listing, optionally filtered by merchant; limit is clamped to [1, 200]. */
     public List<Payment> list(String merchantId, int limit) {
         PageRequest page = PageRequest.of(0, Math.min(Math.max(limit, 1), 200));
         return merchantId == null || merchantId.isBlank()
@@ -175,11 +205,17 @@ public class PaymentService {
                 : payments.findByMerchantIdOrderByCreatedAtDesc(merchantId, page);
     }
 
+    /** Full audit trail of status transitions for one payment, in the order they happened. */
     public List<PaymentEvent> timeline(String paymentId) {
         get(paymentId); // 404 if unknown
         return events.findByPaymentIdOrderByIdAsc(paymentId);
     }
 
+    /**
+     * Writes a domain event to the transactional outbox inside the caller's transaction, so
+     * the event is published if and only if the state change commits. {@link
+     * io.paylab.gateway.outbox.OutboxRelay} delivers it asynchronously.
+     */
     private void enqueue(String eventType, Payment payment) {
         try {
             String payload = mapper.writeValueAsString(Map.of(

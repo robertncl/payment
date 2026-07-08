@@ -26,6 +26,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * The only public HTTP surface of PayLab. All mutating endpoints require an Idempotency-Key
+ * header and run through {@link #idempotent}; reads pass straight to the service layer.
+ */
 @RestController
 @RequestMapping(path = "/api", produces = MediaType.APPLICATION_JSON_VALUE)
 public class PaymentController {
@@ -45,6 +49,10 @@ public class PaymentController {
         this.mapper = mapper;
     }
 
+    /**
+     * Creates a payment (201). The request hash covers the full body, so reusing a key with
+     * different payment details is rejected rather than silently replayed.
+     */
     @PostMapping("/payments")
     public ResponseEntity<String> create(
             @RequestHeader(PayLab.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
@@ -63,6 +71,7 @@ public class PaymentController {
                         request.amount())));
     }
 
+    /** Captures a RISK_APPROVED payment (200): locks FX, posts to the ledger, sets CAPTURED. */
     @PostMapping("/payments/{id}/capture")
     public ResponseEntity<String> capture(
             @RequestHeader(PayLab.IDEMPOTENCY_KEY_HEADER) String idempotencyKey, @PathVariable String id) {
@@ -75,6 +84,7 @@ public class PaymentController {
                 () -> PaymentResponse.from(paymentService.capture(id)));
     }
 
+    /** Fully refunds a CAPTURED payment (200) by reversing its ledger entry. */
     @PostMapping("/payments/{id}/refund")
     public ResponseEntity<String> refund(
             @RequestHeader(PayLab.IDEMPOTENCY_KEY_HEADER) String idempotencyKey, @PathVariable String id) {
@@ -87,11 +97,13 @@ public class PaymentController {
                 () -> PaymentResponse.from(paymentService.refund(id)));
     }
 
+    /** Fetches a single payment, 404 if unknown. */
     @GetMapping("/payments/{id}")
     public PaymentResponse get(@PathVariable String id) {
         return PaymentResponse.from(paymentService.get(id));
     }
 
+    /** Lists payments newest-first, optionally scoped to one merchant. */
     @GetMapping("/payments")
     public List<PaymentResponse> list(
             @RequestParam(required = false) String merchantId, @RequestParam(defaultValue = "50") int limit) {
@@ -100,6 +112,7 @@ public class PaymentController {
                 .toList();
     }
 
+    /** Status-transition timeline for one payment (the audit trail). */
     @GetMapping("/payments/{id}/events")
     public List<PaymentEventResponse> events(@PathVariable String id) {
         return paymentService.timeline(id).stream()
@@ -114,8 +127,10 @@ public class PaymentController {
     }
 
     /**
-     * Replay-or-execute wrapper: first call runs the supplier and stores the serialized
-     * response under the key; replays return the stored bytes with X-Idempotent-Replay: true.
+     * Replay-or-execute wrapper around every mutating endpoint: first call runs the supplier
+     * and stores the serialized response under the key; replays return the stored bytes with
+     * X-Idempotent-Replay: true. On business failure the key is released so the client may
+     * retry with the same key — only successes are pinned.
      */
     private ResponseEntity<String> idempotent(
             String key,
@@ -143,6 +158,7 @@ public class PaymentController {
         }
     }
 
+    /** Serializes the response once so the live reply and the stored replay are byte-identical. */
     private String serialize(PaymentResponse body) {
         try {
             return mapper.writeValueAsString(body);
