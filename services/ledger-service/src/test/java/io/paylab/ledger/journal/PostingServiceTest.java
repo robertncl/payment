@@ -105,6 +105,37 @@ class PostingServiceTest {
     }
 
     @Test
+    void zeroFeeCaptureOmitsFeeLegAndStaysBalanced() {
+        CapturePostingCommand cmd = capture("pay_5");
+        cmd.setFeeAmount(new BigDecimal("0.0000"));
+
+        PostingResult result = service().postCapture(cmd);
+
+        Integer lineCount = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM journal_lines WHERE entry_id = ?", Integer.class, result.getEntryId());
+        assertEquals(4, lineCount);
+        assertTrue(service().trialBalance().isBalanced());
+    }
+
+    @Test
+    void nonPositiveAmountIsRejected() {
+        CapturePostingCommand zeroAmount = capture("pay_6");
+        zeroAmount.setAmount(BigDecimal.ZERO);
+        assertThrows(IllegalArgumentException.class, () -> service().postCapture(zeroAmount));
+
+        CapturePostingCommand nullAmount = capture("pay_6");
+        nullAmount.setAmount(null);
+        assertThrows(IllegalArgumentException.class, () -> service().postCapture(nullAmount));
+    }
+
+    @Test
+    void negativeFeeIsRejected() {
+        CapturePostingCommand cmd = capture("pay_7");
+        cmd.setFeeAmount(new BigDecimal("-0.0001"));
+        assertThrows(IllegalArgumentException.class, () -> service().postCapture(cmd));
+    }
+
+    @Test
     void zeroSumGuardCatchesUnbalancedLines() {
         List<JournalLine> bad = List.of(
                 new JournalLine("a", "SGD", Direction.DEBIT, new BigDecimal("10.0000")),

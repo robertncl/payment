@@ -78,6 +78,21 @@ class QuoteServiceTest {
     }
 
     @Test
+    void scheduledSweepEvictsExpiredQuotes() {
+        MutableClock clock = new MutableClock();
+        QuoteService service = new QuoteService(table, clock);
+        FxQuote quote = service.lock(new LockQuoteRequest("SGD", "MYR", BigDecimal.TEN));
+
+        clock.now = clock.now.plusSeconds(61);
+        service.evictExpired();
+
+        // roll the clock back inside the TTL: get() would still find the quote if the
+        // sweep had not removed it, so null proves the eviction itself worked
+        clock.now = clock.now.minusSeconds(31);
+        assertNull(service.get(quote.getQuoteId()));
+    }
+
+    @Test
     void inversePairsAreNotReciprocal_becauseSpreadAppliesBothWays() {
         QuoteService service = new QuoteService(table, new MutableClock());
         BigDecimal sgdMyr =

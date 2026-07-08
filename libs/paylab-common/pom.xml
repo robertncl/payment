@@ -10,4 +10,12 @@
     <artifactId>paylab-common</artifactId>
     <name>PayLab :: Common</name>
     <description>Cross-cutting constants and helpers shared by all PayLab services</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>
