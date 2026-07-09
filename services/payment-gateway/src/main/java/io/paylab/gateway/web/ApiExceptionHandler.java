@@ -1,6 +1,7 @@
 package io.paylab.gateway.web;
 
 import com.alipay.sofa.rpc.core.exception.SofaRpcException;
+import io.paylab.gateway.chaos.ChaosFailureException;
 import io.paylab.gateway.domain.IllegalTransitionException;
 import io.paylab.gateway.idempotency.IdempotencyService;
 import io.paylab.gateway.web.PaymentDtos.ApiError;
@@ -47,6 +48,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(SofaRpcException.class)
     public ResponseEntity<ApiError> rpcFailure(SofaRpcException e) {
         return error(HttpStatus.BAD_GATEWAY, "downstream_unavailable", e.getMessage());
+    }
+
+    /** Forced-rollback gate: the injected fault surfaces as a plain 500 with a marker code. */
+    @ExceptionHandler(ChaosFailureException.class)
+    public ResponseEntity<ApiError> chaos(ChaosFailureException e) {
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "chaos_injected", e.getMessage());
     }
 
     private ResponseEntity<ApiError> error(HttpStatus status, String code, String message) {

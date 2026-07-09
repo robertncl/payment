@@ -14,6 +14,7 @@ import io.paylab.gateway.web.PaymentDtos.PaymentResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,18 +36,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class PaymentController {
 
     public static final String REPLAY_HEADER = "X-Idempotent-Replay";
+    public static final String CHAOS_HEADER = "X-PayLab-Chaos";
+    public static final String CHAOS_FAIL_CAPTURE = "fail-after-capture-branches";
 
     private final PaymentService paymentService;
     private final IdempotencyService idempotency;
     private final RpcClients rpc;
     private final ObjectMapper mapper;
+    private final boolean chaosEnabled;
 
     public PaymentController(
-            PaymentService paymentService, IdempotencyService idempotency, RpcClients rpc, ObjectMapper mapper) {
+            PaymentService paymentService,
+            IdempotencyService idempotency,
+            RpcClients rpc,
+            ObjectMapper mapper,
+            @Value("${paylab.chaos.enabled:false}") boolean chaosEnabled) {
         this.paymentService = paymentService;
         this.idempotency = idempotency;
         this.rpc = rpc;
         this.mapper = mapper;
+        this.chaosEnabled = chaosEnabled;
     }
 
     /**
@@ -71,17 +80,26 @@ public class PaymentController {
                         request.amount())));
     }
 
-    /** Captures a RISK_APPROVED payment (200): locks FX, posts to the ledger, sets CAPTURED. */
+    /**
+     * Captures a RISK_APPROVED payment (200): locks FX, posts to the ledger, sets CAPTURED —
+     * all branches of one Seata global transaction. The chaos header (honored only when
+     * paylab.chaos.enabled) forces a failure after both branches so the forced-rollback e2e
+     * gate can observe Seata undoing them; the idempotency key is released on the failure,
+     * so the same key retries cleanly.
+     */
     @PostMapping("/payments/{id}/capture")
     public ResponseEntity<String> capture(
-            @RequestHeader(PayLab.IDEMPOTENCY_KEY_HEADER) String idempotencyKey, @PathVariable String id) {
+            @RequestHeader(PayLab.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            @RequestHeader(value = CHAOS_HEADER, required = false) String chaos,
+            @PathVariable String id) {
+        boolean chaosFail = chaosEnabled && CHAOS_FAIL_CAPTURE.equals(chaos);
         String hash = IdempotencyService.sha256("POST/payments/" + id + "/capture");
         return idempotent(
                 idempotencyKey,
                 "POST/payments/capture",
                 hash,
                 HttpStatus.OK,
-                () -> PaymentResponse.from(paymentService.capture(id)));
+                () -> PaymentResponse.from(paymentService.capture(id, chaosFail)));
     }
 
     /** Fully refunds a CAPTURED payment (200) by reversing its ledger entry. */

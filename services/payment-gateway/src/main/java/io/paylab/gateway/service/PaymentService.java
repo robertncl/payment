@@ -5,7 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.paylab.api.fx.FxQuote;
 import io.paylab.api.fx.LockQuoteRequest;
 import io.paylab.api.ledger.CapturePostingCommand;
+import io.paylab.api.risk.RiskAssessRequest;
+import io.paylab.api.risk.RiskDecision;
 import io.paylab.common.Money;
+import io.paylab.gateway.chaos.ChaosFailureException;
 import io.paylab.gateway.domain.Payment;
 import io.paylab.gateway.domain.PaymentEvent;
 import io.paylab.gateway.domain.PaymentStateMachine;
@@ -20,16 +23,18 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.seata.spring.annotation.GlobalTransactional;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Payment lifecycle orchestration. Pre-Seata (ADR-0002): RPC side effects are idempotent on
- * the callee (ledger entries keyed by payment+type) and run BEFORE the local state commit,
- * so a crash between the two is healed by client retry, not by distributed transaction.
- * Phase 2 replaces this ordering with a Seata AT scope.
+ * Payment lifecycle orchestration. Capture and refund run inside a Seata AT global
+ * transaction (ADR-0004): the ledger posting and the local state commit are branches of one
+ * XID, so a failure between them rolls both back. When Seata is disabled
+ * (PAYLAB_SEATA_ENABLED=false — bare local runs), the same code degrades to the ADR-0002
+ * ordering: idempotent RPC side effects BEFORE the local commit, healed by client retry.
  */
 @Service
 public class PaymentService {
@@ -58,11 +63,13 @@ public class PaymentService {
 
     /**
      * Step 1 of the lifecycle: validates the request (supported ISO currencies, cross-border
-     * only, positive DECIMAL(20,4) amount), then in a single local transaction persists the
-     * payment in CREATED, auto-approves it to RISK_APPROVED (Phase 1 risk stub), records both
-     * transitions as {@link PaymentEvent} rows, and enqueues a {@code payment.created} outbox
-     * event. The fee is fixed at creation time by {@link FeePolicy}; no FX or ledger work
-     * happens yet — money only moves at capture.
+     * only, positive DECIMAL(20,4) amount), asks risk-service for a verdict (denylist,
+     * corridor cap, velocity — idempotent per paymentId, called before the local transaction
+     * like every remote side effect), then in a single local transaction persists the payment
+     * as RISK_APPROVED or RISK_DECLINED, records the transitions as {@link PaymentEvent}
+     * rows, and enqueues a {@code payment.created} outbox event. The fee is fixed at creation
+     * time by {@link FeePolicy}; no FX or ledger work happens yet — money only moves at
+     * capture. RISK_DECLINED is terminal: the payment is returned, not an error.
      */
     public Payment create(
             String payerId, String merchantId, String sourceCurrency, String targetCurrency, BigDecimal amount) {
@@ -73,10 +80,15 @@ public class PaymentService {
         }
         Money.requireValidAmount(amount);
 
+        String paymentId = "pay_" + UUID.randomUUID();
+        RiskDecision verdict = rpc.risk()
+                .assess(new RiskAssessRequest(
+                        paymentId, payerId, merchantId, sourceCurrency, targetCurrency, Money.round4(amount)));
+
         return tx.execute(status -> {
             Instant now = Instant.now();
             Payment payment = new Payment(
-                    "pay_" + UUID.randomUUID(),
+                    paymentId,
                     payerId,
                     merchantId,
                     sourceCurrency,
@@ -86,16 +98,16 @@ public class PaymentService {
                     now);
             events.save(new PaymentEvent(payment.getId(), null, PaymentStatus.CREATED, null, now));
 
-            // Phase 1 stub: risk-service is wired in Phase 2; approve unconditionally.
             // Transition BEFORE the first save: persist-then-modify in one tx loses the
             // status update when the IDENTITY event inserts force early execution of the
             // payment INSERT (observed on OceanBase; the events above keep the full trail).
-            payment.transitionTo(PaymentStatus.RISK_APPROVED, now);
+            PaymentStatus outcome = verdict.isApproved() ? PaymentStatus.RISK_APPROVED : PaymentStatus.RISK_DECLINED;
+            payment.transitionTo(outcome, now);
             events.save(new PaymentEvent(
                     payment.getId(),
                     PaymentStatus.CREATED,
-                    PaymentStatus.RISK_APPROVED,
-                    "risk stub: auto-approve (Phase 2 wires risk-service)",
+                    outcome,
+                    verdict.getReasonCode() + (verdict.getDetail() == null ? "" : ": " + verdict.getDetail()),
                     now));
 
             enqueue("payment.created", payment);
@@ -104,20 +116,29 @@ public class PaymentService {
     }
 
     /**
-     * Step 2: moves the money. Runs in three phases, deliberately in this order (ADR-0002):
+     * Step 2: moves the money, inside one Seata AT global transaction (ADR-0004):
      * <ol>
      *   <li>Guard — reject the capture up front if the payment is not in a state that allows
      *       RISK_APPROVED → CAPTURED, before any remote side effect.</li>
-     *   <li>Remote side effects — lock a 60s FX quote (captures always reference a locked
-     *       quote, never a live rate), compute the target amount from it, and post the
-     *       double-entry capture to the ledger. The ledger call is idempotent per
-     *       (paymentId, CAPTURE), so a crash after this point is healed by client retry.</li>
-     *   <li>Local commit — re-read the payment inside a transaction (a concurrent capture may
-     *       have won the race; if so return it as-is), transition to CAPTURED, attach the FX
-     *       details, append the audit event, and enqueue {@code payment.captured}.</li>
+     *   <li>FX — lock a 60s quote (captures always reference a locked quote, never a live
+     *       rate) and compute the target amount from it. Quotes are in-memory and expire on
+     *       their own, so fx is deliberately NOT a rollback branch.</li>
+     *   <li>Ledger branch — post the double-entry capture over bolt; the XID travels with
+     *       the call, so the journal insert enlists in the global transaction. Still
+     *       idempotent per (paymentId, CAPTURE) as defense in depth.</li>
+     *   <li>Local branch — re-read the payment inside a transaction (a concurrent capture
+     *       may have won the race; if so return it as-is), transition to CAPTURED, attach
+     *       the FX details, append the audit event, and enqueue {@code payment.captured}.</li>
      * </ol>
+     * Any exception before the method returns — including the chaos hook that fires after
+     * both branches completed — rolls back ledger and local state together. With Seata
+     * disabled the same ordering degrades to ADR-0002 (idempotent callee first).
+     *
+     * @param chaosFailBeforeCommit forced-rollback gate: throw after both branches have done
+     *     their work so the e2e can watch the global rollback undo them
      */
-    public Payment capture(String paymentId) {
+    @GlobalTransactional(name = "paylab-capture", rollbackFor = Exception.class)
+    public Payment capture(String paymentId, boolean chaosFailBeforeCommit) {
         Payment payment = get(paymentId);
         // reject illegal transitions before any side effect
         PaymentStateMachine.assertTransition(payment.getStatus(), PaymentStatus.CAPTURED);
@@ -141,7 +162,7 @@ public class PaymentService {
         cmd.setTargetAmount(targetAmount);
         rpc.ledger().postCapture(cmd);
 
-        return tx.execute(status -> {
+        Payment captured = tx.execute(status -> {
             Payment fresh = get(paymentId);
             if (fresh.getStatus() == PaymentStatus.CAPTURED) {
                 return fresh; // lost a benign race; ledger side was idempotent
@@ -158,14 +179,21 @@ public class PaymentService {
             enqueue("payment.captured", fresh);
             return payments.save(fresh);
         });
+
+        if (chaosFailBeforeCommit) {
+            throw new ChaosFailureException(
+                    "chaos: forced failure after ledger + local branches for " + paymentId + " (global rollback)");
+        }
+        return captured;
     }
 
     /**
-     * Full refund of a CAPTURED payment. Same ordering as {@link #capture}: the ledger posts
-     * the reversal first (it re-derives the reversed legs from the original CAPTURE entry, so
-     * no amounts are passed), then the local CAPTURED → REFUNDED transition commits. Both
-     * sides are idempotent, so a retry after a mid-flight crash converges.
+     * Full refund of a CAPTURED payment, in the same global-transaction shape as {@link
+     * #capture}: the ledger posts the reversal as one branch (it re-derives the reversed legs
+     * from the original CAPTURE entry, so no amounts are passed), the local CAPTURED →
+     * REFUNDED transition is the other. Both sides stay idempotent as defense in depth.
      */
+    @GlobalTransactional(name = "paylab-refund", rollbackFor = Exception.class)
     public Payment refund(String paymentId) {
         Payment payment = get(paymentId);
         PaymentStateMachine.assertTransition(payment.getStatus(), PaymentStatus.REFUNDED);

@@ -5,6 +5,7 @@
 -- Service-owned databases (schema-per-service; tables come from each service's Flyway).
 CREATE DATABASE IF NOT EXISTS paylab_gateway;
 CREATE DATABASE IF NOT EXISTS paylab_ledger;
+CREATE DATABASE IF NOT EXISTS paylab_risk;
 
 -- Phase 0 canary (health/gate check target).
 CREATE TABLE IF NOT EXISTS phase0_canary (

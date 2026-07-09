@@ -1,6 +1,7 @@
 # ADR-0002: Pre-Seata consistency for capture/refund (Phase 1 only)
 
-- **Status:** Accepted (planned to be superseded in Phase 2 by the Seata AT scope)
+- **Status:** Superseded by ADR-0004 (Seata AT). This ordering remains the documented
+  fallback whenever Seata is disabled (`PAYLAB_SEATA_ENABLED=false`).
 - **Date:** 2026-07-07
 - **Phase:** 1
 

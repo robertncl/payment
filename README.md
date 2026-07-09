@@ -22,7 +22,7 @@ flowchart LR
     end
     REG[(SOFARegistry 6.1.9<br/>session :9603)]
     OB[(OceanBase CE 4.3.5<br/>mysql-mode :2881)]
-    SEATA[Seata 2.6 AT<br/>Phase 2]
+    SEATA[Seata 2.6 AT<br/>TC :8091]
 
     MP -->|REST| PG
     PG -->|bolt| RS
@@ -42,10 +42,11 @@ flowchart LR
 ```
 
 Payment lifecycle: `CREATED → RISK_APPROVED → CAPTURED → SETTLED` with branches
-`RISK_DECLINED`, `FAILED`, `REFUNDED`. Capture/refund state change + ledger posting are
-atomic via Seata (Phase 2). The end-to-end processing flow — state machine, idempotency,
-FX quote lock, ledger legs, outbox — is documented in
-[docs/payment-flow.md](docs/payment-flow.md).
+`RISK_DECLINED`, `FAILED`, `REFUNDED`. Risk (denylist + corridor cap + velocity) gates
+create; capture/refund state change + ledger posting are atomic via **Seata 2.6 AT**
+(ADR-0004), with a forced-rollback e2e proving it. The end-to-end processing flow — state
+machine, idempotency, risk rules, FX quote lock, ledger legs, Seata branches, outbox — is
+documented in [docs/payment-flow.md](docs/payment-flow.md).
 
 ## Quickstart (local)
 

@@ -38,6 +38,10 @@
         <spotless.version>2.44.5</spotless.version>
         <!-- Hessian serialization + bolt need reflective access on JDK 17+ -->
         <paylab.add.opens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/sun.security.action=ALL-UNNAMED</paylab.add.opens>
+        <!-- org.apache.seata since 2.1.0 (io.seata before). Starter verified Boot-3 ready
+             (AutoConfiguration.imports present); seata-sofa-rpc ships SPI bolt filters for
+             XID propagation. Server image apache/seata-server:2.6.0.jdk17 (arm64 ok). -->
+        <seata.version>2.6.0</seata.version>
     </properties>
 
     <dependencyManagement>
@@ -51,6 +55,16 @@
                 <groupId>io.paylab</groupId>
                 <artifactId>paylab-rpc-api</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.seata</groupId>
+                <artifactId>seata-spring-boot-starter</artifactId>
+                <version>${seata.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.seata</groupId>
+                <artifactId>seata-sofa-rpc</artifactId>
+                <version>${seata.version}</version>
             </dependency>
             <!-- rpc-sofa-boot-starter is BOM-managed at ${sofa.boot.version}. Do NOT pin the
                  5.5.x/6.0.x lines from Central metadata: those are SOFABoot 3 / Spring Boot 2 /

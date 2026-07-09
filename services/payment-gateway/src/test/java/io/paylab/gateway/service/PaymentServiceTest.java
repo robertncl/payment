@@ -16,6 +16,9 @@ import io.paylab.api.fx.FxQuote;
 import io.paylab.api.ledger.CapturePostingCommand;
 import io.paylab.api.ledger.LedgerFacade;
 import io.paylab.api.ledger.PostingResult;
+import io.paylab.api.risk.RiskDecision;
+import io.paylab.api.risk.RiskFacade;
+import io.paylab.gateway.chaos.ChaosFailureException;
 import io.paylab.gateway.domain.IllegalTransitionException;
 import io.paylab.gateway.domain.Payment;
 import io.paylab.gateway.domain.PaymentEvent;
@@ -62,15 +65,19 @@ class PaymentServiceTest {
 
     private FxFacade fx;
     private LedgerFacade ledger;
+    private RiskFacade risk;
     private PaymentService service;
 
     @BeforeEach
     void setUp() {
         fx = mock(FxFacade.class);
         ledger = mock(LedgerFacade.class);
+        risk = mock(RiskFacade.class);
+        when(risk.assess(any())).thenReturn(new RiskDecision(true, RiskDecision.REASON_APPROVED, null));
         RpcClients rpc = mock(RpcClients.class);
         when(rpc.fx()).thenReturn(fx);
         when(rpc.ledger()).thenReturn(ledger);
+        when(rpc.risk()).thenReturn(risk);
         service = new PaymentService(
                 payments, events, outbox, rpc, new TransactionTemplate(txManager), new ObjectMapper());
     }
@@ -110,6 +117,23 @@ class PaymentServiceTest {
     }
 
     @Test
+    void createPersistsDeclinedPaymentWhenRiskSaysNo() {
+        when(risk.assess(any()))
+                .thenReturn(new RiskDecision(false, RiskDecision.REASON_DENYLISTED_PAYER, "payer payer-bad"));
+
+        Payment payment = service.create("payer-bad", "merchant-1", "SGD", "MYR", new BigDecimal("100.0000"));
+
+        assertEquals(PaymentStatus.RISK_DECLINED, payment.getStatus());
+        assertEquals(List.of("CREATED", "RISK_DECLINED"), transitionsOf(payment.getId()));
+        String reason =
+                events.findByPaymentIdOrderByIdAsc(payment.getId()).get(1).getDetail();
+        assertTrue(reason.contains(RiskDecision.REASON_DENYLISTED_PAYER), reason);
+        // declined payments are terminal: capture must be rejected without side effects
+        assertThrows(IllegalTransitionException.class, () -> service.capture(payment.getId(), false));
+        verifyNoInteractions(fx, ledger);
+    }
+
+    @Test
     void createRejectsSameCurrencyCorridor() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -135,7 +159,7 @@ class PaymentServiceTest {
         when(ledger.postCapture(any())).thenReturn(new PostingResult("ent_1", false));
         Payment created = service.create("payer-1", "merchant-1", "SGD", "MYR", new BigDecimal("100.0000"));
 
-        Payment captured = service.capture(created.getId());
+        Payment captured = service.capture(created.getId(), false);
 
         assertEquals(PaymentStatus.CAPTURED, captured.getStatus());
         assertEquals("quo_1", captured.getFxQuoteId());
@@ -163,7 +187,7 @@ class PaymentServiceTest {
                 new BigDecimal("0.1000"),
                 Instant.now()));
 
-        assertThrows(IllegalTransitionException.class, () -> service.capture(stuck.getId()));
+        assertThrows(IllegalTransitionException.class, () -> service.capture(stuck.getId(), false));
         verifyNoInteractions(fx, ledger);
     }
 
@@ -179,12 +203,23 @@ class PaymentServiceTest {
             return new PostingResult("ent_1", true);
         });
 
-        Payment result = service.capture(created.getId());
+        Payment result = service.capture(created.getId(), false);
 
         assertEquals(PaymentStatus.CAPTURED, result.getStatus());
         // the loser must not append a second CAPTURED event or outbox row
         assertEquals(List.of("CREATED", "RISK_APPROVED"), transitionsOf(created.getId()));
         assertEquals(List.of("payment.created"), outboxEventTypes());
+    }
+
+    @Test
+    void chaosFlagThrowsAfterBothBranches() {
+        when(fx.lockQuote(any())).thenReturn(sgdMyrQuote());
+        when(ledger.postCapture(any())).thenReturn(new PostingResult("ent_1", false));
+        Payment created = service.create("payer-1", "merchant-1", "SGD", "MYR", new BigDecimal("100.0000"));
+
+        // without Seata the branches stay committed — the rollback itself is the e2e's proof
+        assertThrows(ChaosFailureException.class, () -> service.capture(created.getId(), true));
+        verify(ledger).postCapture(any());
     }
 
     // ---------- refund ----------
@@ -195,7 +230,7 @@ class PaymentServiceTest {
         when(ledger.postCapture(any())).thenReturn(new PostingResult("ent_1", false));
         when(ledger.postRefund(anyString())).thenReturn(new PostingResult("ent_2", false));
         Payment created = service.create("payer-1", "merchant-1", "SGD", "MYR", new BigDecimal("100.0000"));
-        service.capture(created.getId());
+        service.capture(created.getId(), false);
 
         Payment refunded = service.refund(created.getId());
 
@@ -218,7 +253,7 @@ class PaymentServiceTest {
         when(fx.lockQuote(any())).thenReturn(sgdMyrQuote());
         when(ledger.postCapture(any())).thenReturn(new PostingResult("ent_1", false));
         Payment created = service.create("payer-1", "merchant-1", "SGD", "MYR", new BigDecimal("100.0000"));
-        service.capture(created.getId());
+        service.capture(created.getId(), false);
         when(ledger.postRefund(anyString())).thenAnswer(invocation -> {
             Payment winner = payments.findById(created.getId()).orElseThrow();
             winner.transitionTo(PaymentStatus.REFUNDED, Instant.now());

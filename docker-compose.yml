@@ -39,6 +39,20 @@ services:
       - "9615:9615" # meta
       - "9622:9622" # data
 
+  seata-server:
+    image: apache/seata-server:2.6.0.jdk17
+    restart: unless-stopped
+    ports:
+      - "8091:8091" # transaction coordinator (client RPC)
+      - "7091:7091" # console / http
+    healthcheck:
+      # busybox-less TCP probe: TC listener up = healthy (file store, no external deps)
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/127.0.0.1/8091' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   payment-gateway:
     <<: *service-defaults
     build:
@@ -51,10 +65,15 @@ services:
       PAYLAB_DB_URL: jdbc:mysql://oceanbase:2881/paylab_gateway?useSSL=false&connectionTimeZone=UTC&allowPublicKeyRetrieval=true
       PAYLAB_DB_USER: root@paylab
       PAYLAB_DB_PASSWORD: ${OB_TENANT_PASSWORD:-paylab-dev}
+      PAYLAB_SEATA_ENABLED: "true"
+      PAYLAB_SEATA_ENDPOINT: seata-server:8091
+      PAYLAB_CHAOS_ENABLED: "true" # lab only: enables the forced-rollback fault hook (e2e gate)
     depends_on:
       sofa-registry:
         condition: service_healthy
       oceanbase:
+        condition: service_healthy
+      seata-server:
         condition: service_healthy
     ports:
       - "8080:8080"
@@ -68,6 +87,14 @@ services:
     environment:
       PAYLAB_REGISTRY_ENDPOINT: sofa-registry:9603
       HEALTH_PORT: 8081
+      PAYLAB_DB_URL: jdbc:mysql://oceanbase:2881/paylab_risk?useSSL=false&connectionTimeZone=UTC&allowPublicKeyRetrieval=true
+      PAYLAB_DB_USER: root@paylab
+      PAYLAB_DB_PASSWORD: ${OB_TENANT_PASSWORD:-paylab-dev}
+    depends_on:
+      sofa-registry:
+        condition: service_healthy
+      oceanbase:
+        condition: service_healthy
     ports:
       - "8081:8081"
 
@@ -95,10 +122,14 @@ services:
       PAYLAB_DB_URL: jdbc:mysql://oceanbase:2881/paylab_ledger?useSSL=false&connectionTimeZone=UTC&allowPublicKeyRetrieval=true
       PAYLAB_DB_USER: root@paylab
       PAYLAB_DB_PASSWORD: ${OB_TENANT_PASSWORD:-paylab-dev}
+      PAYLAB_SEATA_ENABLED: "true"
+      PAYLAB_SEATA_ENDPOINT: seata-server:8091
     depends_on:
       sofa-registry:
         condition: service_healthy
       oceanbase:
+        condition: service_healthy
+      seata-server:
         condition: service_healthy
     ports:
       - "8083:8083"
