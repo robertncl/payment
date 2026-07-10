@@ -10,11 +10,22 @@ const BASE = __ENV.BASE_URL || 'http://localhost:8080';
 
 export const options = {
   scenarios: {
+    // JIT/plan-cache warm-up: same flow, separate tags so it never touches the thresholds
+    warmup: {
+      executor: 'constant-arrival-rate',
+      rate: 5,
+      timeUnit: '1s',
+      duration: '30s',
+      preAllocatedVUs: 10,
+      maxVUs: 20,
+      env: { PHASE: 'warmup' },
+    },
     lifecycle: {
       executor: 'constant-arrival-rate',
       rate: Number(__ENV.RATE || 10), // payments/second
       timeUnit: '1s',
       duration: __ENV.DURATION || '2m',
+      startTime: '30s',
       preAllocatedVUs: 30,
       maxVUs: 100,
     },
@@ -29,13 +40,14 @@ export const options = {
 };
 
 export default function () {
+  const phase = __ENV.PHASE === 'warmup' ? 'warmup-' : '';
   const uid = `${__VU}-${__ITER}-${Date.now()}`;
   const params = (name, key) => ({
     headers: {
       'Content-Type': 'application/json',
-      'Idempotency-Key': `k6-${name}-${uid}-${key}`,
+      'Idempotency-Key': `k6-${phase}${name}-${uid}-${key}`,
     },
-    tags: { name },
+    tags: { name: `${phase}${name}` },
   });
 
   const created = http.post(

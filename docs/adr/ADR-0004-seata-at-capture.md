@@ -19,9 +19,13 @@ Capture and refund each run inside a **Seata 2.6.0 AT global transaction**
 
 - **Branches.** (1) ledger posting (`postCapture`/`postRefund` over bolt) against
   `paylab_ledger`; (2) the gateway's local commit (payment status + timeline + outbox)
-  against `paylab_gateway`. Both DBs carry Seata's `undo_log` (Flyway V2). The **fx quote is
-  deliberately not a branch** — quotes are in-memory, expire in 60s, and cost nothing to
-  re-lock; there is nothing to compensate.
+  against `paylab_gateway`. Both DBs carry Seata's `undo_log`. ⚠️ Bootstrap deadlock:
+  `DataSourceProxy.init` refuses to start when `undo_log` is missing, but Flyway needs that
+  datasource to create it — so compose init-sql pre-creates the table before services boot,
+  and the Flyway V2 migrations are `IF NOT EXISTS` no-ops there (still authoritative for H2
+  test runs, where Seata is off). On an existing ob-data volume, apply the init-sql DDL
+  manually. The **fx quote is deliberately not a branch** — quotes are in-memory, expire in
+  60s, and cost nothing to re-lock; there is nothing to compensate.
 - **XID propagation.** `org.apache.seata:seata-sofa-rpc` ships SPI-registered SOFARPC
   filters (`TransactionContextProviderFilter`/`ConsumerFilter`) — presence on the classpath
   wires XID transport over bolt; no code.

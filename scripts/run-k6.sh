@@ -18,6 +18,7 @@ mkdir -p perf/results
 # assumptions (Docker Desktop / WSL2 friendly).
 docker run --rm \
   --network "${NETWORK}" \
+  --user "$(id -u):$(id -g)" \
   -v "$(pwd)/perf/k6:/scripts:ro" \
   -v "$(pwd)/perf/results:/results" \
   -e BASE_URL=http://payment-gateway:8080 \

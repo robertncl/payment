@@ -27,6 +27,9 @@ fail the process (non-zero exit) when breached. Summaries are written to `perf/r
 
 Method notes:
 
+- The script runs a 30s / 5 rps warm-up phase first (tagged `warmup-*`, excluded from
+  thresholds): freshly restarted services showed create p99 ~785 ms from JIT/plan-cache
+  cold starts vs ~135 ms p95 warm — gate numbers are meaningless without it.
 - Load payers are unique per iteration; the risk velocity rule (>10 approvals/min/payer)
   would otherwise decline load-generated payments and skew latencies.
 - `create` measures risk-service in the loop; `capture` measures fx + ledger + the Seata
