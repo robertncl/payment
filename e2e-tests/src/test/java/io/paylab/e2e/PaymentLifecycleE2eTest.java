@@ -72,8 +72,7 @@ class PaymentLifecycleE2eTest {
     private static String createBody(String payer, String merchant, String amount) {
         return """
                 {"payerId":"%s","merchantId":"%s","sourceCurrency":"SGD","targetCurrency":"MYR","amount":%s}
-                """
-                .formatted(payer, merchant, amount);
+                """.formatted(payer, merchant, amount);
     }
 
     private static JsonNode parse(HttpResponse<String> response) throws IOException {
@@ -192,10 +191,7 @@ class PaymentLifecycleE2eTest {
 
     @Test
     void validation_unsupportedCurrencyAndUnknownPayment() throws Exception {
-        HttpResponse<String> bad = post(
-                "/api/payments",
-                "e2e-bad-" + UUID.randomUUID(),
-                """
+        HttpResponse<String> bad = post("/api/payments", "e2e-bad-" + UUID.randomUUID(), """
                 {"payerId":"p","merchantId":"m","sourceCurrency":"THB","targetCurrency":"MYR","amount":10}
                 """);
         assertEquals(400, bad.statusCode(), bad.body());
