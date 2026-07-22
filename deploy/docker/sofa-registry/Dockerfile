@@ -1,7 +1,7 @@
 # SOFARegistry has no official Docker image (ADR-0001): package the official release tarball.
 # Integration mode = meta + data + session roles in one JVM; dev profile = embedded H2 meta store.
 # The server targets JDK 8 (start_base.sh uses CMS flags); services stay on 17 — separate processes.
-FROM eclipse-temurin:8-jre-noble
+FROM eclipse-temurin:8-jre-noble@sha256:6c6cd2a7e94370ee3897d7851c951802e01773e5a5b08be1df884aea1d41addf
 
 ARG REGISTRY_VERSION=6.1.9
 

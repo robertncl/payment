@@ -17,7 +17,9 @@ public final class PaymentDtos {
             @NotBlank String merchantId,
             @NotBlank @Size(min = 3, max = 3) String sourceCurrency,
             @NotBlank @Size(min = 3, max = 3) String targetCurrency,
-            @NotNull @Positive @Digits(integer = 16, fraction = 4) BigDecimal amount) {}
+
+            @NotNull @Positive @Digits(integer = 16, fraction = 4)
+            BigDecimal amount) {}
 
     public record PaymentResponse(
             String id,

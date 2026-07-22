@@ -77,8 +77,7 @@ class RiskAndRollbackE2eTest {
     private static String createBody(String payer, String merchant, String amount) {
         return """
                 {"payerId":"%s","merchantId":"%s","sourceCurrency":"SGD","targetCurrency":"MYR","amount":%s}
-                """
-                .formatted(payer, merchant, amount);
+                """.formatted(payer, merchant, amount);
     }
 
     private static JsonNode parse(HttpResponse<String> response) throws IOException {

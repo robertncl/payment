@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 # Shared multi-stage build for every PayLab SOFABoot service; select with --build-arg MODULE=<name>.
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM maven:3.9-eclipse-temurin-17@sha256:1ed5d1f54416b706707b4f3238f63a20bb06aab27c6d240090a2bb9ad895ed45 AS build
 ARG MODULE
 WORKDIR /src
 COPY . .
 RUN --mount=type=cache,target=/root/.m2 \
     mvn -B -ntp -pl services/${MODULE} -am package -DskipTests -Dspotless.check.skip=true
 
-FROM eclipse-temurin:17-jre-noble
+FROM eclipse-temurin:17-jre-noble@sha256:543aebd60ff1deb9e906a8d4b117a7eda68a7f8e0d71041db2b5839d7fa057b8
 ARG MODULE
 
 RUN apt-get update \

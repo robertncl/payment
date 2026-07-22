@@ -32,10 +32,10 @@
         <java.version>17</java.version>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- BOM pins 6.1.8 which is absent from Maven Central; 6.3.0 is the nearest published OSS
+        <!-- BOM pins 6.1.8 which is absent from Maven Central; 6.5.6 is the latest published OSS
              client and the v6 registry wire protocol is compatible across the line (server: 6.1.9) -->
-        <sofa.registry.version>6.3.0</sofa.registry.version>
-        <spotless.version>2.44.5</spotless.version>
+        <sofa.registry.version>6.5.6</sofa.registry.version>
+        <spotless.version>3.8.0</spotless.version>
         <!-- Hessian serialization + bolt need reflective access on JDK 17+ -->
         <paylab.add.opens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/sun.security.action=ALL-UNNAMED</paylab.add.opens>
         <!-- org.apache.seata since 2.1.0 (io.seata before). Starter verified Boot-3 ready

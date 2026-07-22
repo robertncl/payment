@@ -10,7 +10,7 @@ x-service-defaults: &service-defaults
 
 services:
   oceanbase:
-    image: oceanbase/oceanbase-ce:4.3.5-lts
+    image: oceanbase/oceanbase-ce:4.3.5-lts@sha256:31086a6900c21c479c2bcd942b6a28c53b17a51f4e9b9eb8eafcc596adfcd2e3
     restart: unless-stopped
     environment:
       MODE: mini
@@ -40,7 +40,7 @@ services:
       - "9622:9622" # data
 
   seata-server:
-    image: apache/seata-server:2.6.0.jdk17
+    image: apache/seata-server:2.6.0.jdk17@sha256:7889160760f42e02c1586f56b9380c3fb7f0eed591e436bba02e97cbfb99089f
     restart: unless-stopped
     ports:
       - "8091:8091" # transaction coordinator (client RPC)

@@ -127,8 +127,7 @@ public class PostingService {
      */
     @Transactional(readOnly = true)
     public TrialBalanceReport trialBalance() {
-        List<TrialBalanceLine> lines = jdbc.query(
-                """
+        List<TrialBalanceLine> lines = jdbc.query("""
                 SELECT l.account_id, a.type, l.currency,
                        SUM(CASE WHEN l.direction = 'DEBIT' THEN l.amount ELSE 0 END) AS debit_total,
                        SUM(CASE WHEN l.direction = 'CREDIT' THEN l.amount ELSE 0 END) AS credit_total
@@ -136,18 +135,17 @@ public class PostingService {
                 JOIN accounts a ON a.id = l.account_id
                 GROUP BY l.account_id, a.type, l.currency
                 ORDER BY l.account_id, l.currency
-                """,
-                (rs, i) -> {
-                    BigDecimal debit = rs.getBigDecimal("debit_total").setScale(4, RoundingMode.UNNECESSARY);
-                    BigDecimal credit = rs.getBigDecimal("credit_total").setScale(4, RoundingMode.UNNECESSARY);
-                    return new TrialBalanceLine(
-                            rs.getString("account_id"),
-                            rs.getString("type"),
-                            rs.getString("currency"),
-                            debit,
-                            credit,
-                            debit.subtract(credit));
-                });
+                """, (rs, i) -> {
+            BigDecimal debit = rs.getBigDecimal("debit_total").setScale(4, RoundingMode.UNNECESSARY);
+            BigDecimal credit = rs.getBigDecimal("credit_total").setScale(4, RoundingMode.UNNECESSARY);
+            return new TrialBalanceLine(
+                    rs.getString("account_id"),
+                    rs.getString("type"),
+                    rs.getString("currency"),
+                    debit,
+                    credit,
+                    debit.subtract(credit));
+        });
 
         Map<String, BigDecimal> netByCurrency = new TreeMap<>();
         for (TrialBalanceLine line : lines) {
