@@ -52,7 +52,7 @@ bumping the tag (`docker buildx imagetools inspect <image>:<tag>` /
 | Spotless (`spotless-maven-plugin`) | **3.8.0** | Bumped 2.44.5 → 3.8.0 (2026-07-21); requires Java 17+ (already the baseline here). Bundled formatter version moved too — one file needed a re-wrap, fixed via `mvn spotless:apply` and committed. palantir-java-format; `mvn spotless:apply` to fix |
 | k6 | **v2.1.0** | Phase 2 latency proof |
 | Syft / Grype / Cosign | pin in Phase 4 workflow | DevSecOps stage |
-| GitHub Actions (`actions/checkout`, `actions/setup-java`) | **v7.0.1**, **v5.6.0** | Bumped from v4/v4 (2026-07-21); pinned to commit SHA in ci.yml with the tag as a trailing comment |
+| GitHub Actions (`actions/checkout`, `actions/setup-java`) | **v7.0.1**, **v5.7.0** | Bumped from v4/v4 (2026-07-21); pinned to commit SHA in ci.yml with the tag as a trailing comment. 2026-08-03: corrected checkout's SHA (previously mislabeled — the committed hash actually resolved to v7.0.0, not v7.0.1) and bumped setup-java v5.6.0→v5.7.0 (its previous SHA also resolved to the wrong tag, v5.2.0) |
 
 ## Build note — resolved BOM chain
 
