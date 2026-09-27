@@ -148,7 +148,8 @@ class RiskCheckServiceTest {
     @Test
     void incompleteRequestIsRejected() {
         assertThrows(IllegalArgumentException.class, () -> service().assess(null));
-        assertThrows(IllegalArgumentException.class, () -> service()
-                .assess(new RiskAssessRequest(null, "p", "m", "SGD", "MYR", BigDecimal.ONE)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service().assess(new RiskAssessRequest(null, "p", "m", "SGD", "MYR", BigDecimal.ONE)));
     }
 }
