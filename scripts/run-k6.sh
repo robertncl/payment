@@ -10,7 +10,7 @@ RATE="${1:-10}"
 DURATION="${2:-2m}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 NETWORK="${PAYLAB_COMPOSE_NETWORK:-paylab_default}"
-K6_IMAGE="grafana/k6:2.1.0"
+K6_IMAGE="grafana/k6:2.3.0@sha256:9c2dee7f8ed74d317e4027c06a10f169b625638189de8d4555d0b3486a5aeb34"
 
 mkdir -p perf/results
 
