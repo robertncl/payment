@@ -12,9 +12,14 @@ import java.time.Instant;
 
 public final class PaymentDtos {
 
+    /**
+     * Party ids are capped at 55 chars: the ledger derives account ids "payer:&lt;id&gt;" /
+     * "merchant:&lt;id&gt;" into VARCHAR(64) columns, so longer ids would be accepted here and then
+     * fail every capture.
+     */
     public record CreatePaymentRequest(
-            @NotBlank String payerId,
-            @NotBlank String merchantId,
+            @NotBlank @Size(max = 55) String payerId,
+            @NotBlank @Size(max = 55) String merchantId,
             @NotBlank @Size(min = 3, max = 3) String sourceCurrency,
             @NotBlank @Size(min = 3, max = 3) String targetCurrency,
 

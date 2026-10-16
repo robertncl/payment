@@ -57,4 +57,14 @@ class IdempotencyServiceTest {
         service.release("k4");
         assertInstanceOf(Outcome.FirstCall.class, service.begin("k4", "POST/x", "h"));
     }
+
+    @Test
+    void oversizedOrBlankKeyIsRejectedBeforeInsert() {
+        IdempotencyService service = service();
+        String tooLong = "k".repeat(IdempotencyService.MAX_KEY_LENGTH + 1);
+        assertThrows(IllegalArgumentException.class, () -> service.begin(tooLong, "POST/x", "h"));
+        assertThrows(IllegalArgumentException.class, () -> service.begin(" ", "POST/x", "h"));
+        String maxLength = "k".repeat(IdempotencyService.MAX_KEY_LENGTH);
+        assertInstanceOf(Outcome.FirstCall.class, service.begin(maxLength, "POST/x", "h"));
+    }
 }

@@ -1,5 +1,8 @@
 # PayLab local dev stack — Phase 0 gate: OceanBase single node + SOFARegistry + five SOFABoot
 # services registering into the registry. `docker compose up -d --build` from repo root.
+# Host ports bind to loopback only: the DB (dev password), registry ops API and Seata console
+# (default seata/seata login) are unauthenticated or weakly authenticated and must not be
+# reachable from the LAN. Docker Desktop still forwards them to the Windows host's localhost.
 name: paylab
 
 x-service-defaults: &service-defaults
@@ -19,7 +22,7 @@ services:
       OB_TENANT_PASSWORD: ${OB_TENANT_PASSWORD:-paylab-dev}
       OB_DATABASE: paylab
     ports:
-      - "2881:2881"
+      - "127.0.0.1:2881:2881"
     volumes:
       - ob-data:/root/ob
       - ./deploy/compose/init-sql:/root/boot/init.d:ro
@@ -34,17 +37,17 @@ services:
     build: deploy/docker/sofa-registry
     restart: unless-stopped
     ports:
-      - "9600:9600" # session bolt — client data connection
-      - "9603:9603" # session http — server-list lookup + ops/digest API
-      - "9615:9615" # meta
-      - "9622:9622" # data
+      - "127.0.0.1:9600:9600" # session bolt — client data connection
+      - "127.0.0.1:9603:9603" # session http — server-list lookup + ops/digest API
+      - "127.0.0.1:9615:9615" # meta
+      - "127.0.0.1:9622:9622" # data
 
   seata-server:
     image: apache/seata-server:2.6.0.jdk17@sha256:7889160760f42e02c1586f56b9380c3fb7f0eed591e436bba02e97cbfb99089f
     restart: unless-stopped
     ports:
-      - "8091:8091" # transaction coordinator (client RPC)
-      - "7091:7091" # console / http
+      - "127.0.0.1:8091:8091" # transaction coordinator (client RPC)
+      - "127.0.0.1:7091:7091" # console / http
     healthcheck:
       # busybox-less TCP probe: TC listener up = healthy (file store, no external deps)
       test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/127.0.0.1/8091' || exit 1"]
@@ -76,7 +79,7 @@ services:
       seata-server:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
   risk-service:
     <<: *service-defaults
@@ -96,7 +99,7 @@ services:
       oceanbase:
         condition: service_healthy
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
 
   fx-service:
     <<: *service-defaults
@@ -108,7 +111,7 @@ services:
       PAYLAB_REGISTRY_ENDPOINT: sofa-registry:9603
       HEALTH_PORT: 8082
     ports:
-      - "8082:8082"
+      - "127.0.0.1:8082:8082"
 
   ledger-service:
     <<: *service-defaults
@@ -132,7 +135,7 @@ services:
       seata-server:
         condition: service_healthy
     ports:
-      - "8083:8083"
+      - "127.0.0.1:8083:8083"
 
   settlement-recon-job:
     <<: *service-defaults
@@ -144,7 +147,7 @@ services:
       PAYLAB_REGISTRY_ENDPOINT: sofa-registry:9603
       HEALTH_PORT: 8084
     ports:
-      - "8084:8084"
+      - "127.0.0.1:8084:8084"
 
 volumes:
   ob-data:

@@ -41,6 +41,9 @@ public class IdempotencyService {
         }
     }
 
+    /** Width of idempotency_keys.idem_key; longer keys would otherwise fail the insert with a 500. */
+    public static final int MAX_KEY_LENGTH = 100;
+
     private final IdempotencyRepository repository;
 
     public IdempotencyService(IdempotencyRepository repository) {
@@ -59,6 +62,9 @@ public class IdempotencyService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Outcome begin(String key, String endpoint, String requestHash) {
+        if (key == null || key.isBlank() || key.length() > MAX_KEY_LENGTH) {
+            throw new IllegalArgumentException("Idempotency-Key must be 1-" + MAX_KEY_LENGTH + " characters");
+        }
         Optional<IdempotencyRecord> existing = repository.findById(key);
         if (existing.isEmpty()) {
             try {

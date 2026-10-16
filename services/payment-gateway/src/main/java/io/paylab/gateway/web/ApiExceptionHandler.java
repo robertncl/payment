@@ -5,6 +5,8 @@ import io.paylab.gateway.chaos.ChaosFailureException;
 import io.paylab.gateway.domain.IllegalTransitionException;
 import io.paylab.gateway.idempotency.IdempotencyService;
 import io.paylab.gateway.web.PaymentDtos.ApiError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(IllegalTransitionException.class)
     public ResponseEntity<ApiError> illegalTransition(IllegalTransitionException e) {
@@ -45,9 +49,14 @@ public class ApiExceptionHandler {
         return error(HttpStatus.CONFLICT, "conflict", e.getMessage());
     }
 
+    /**
+     * RPC framework failures carry provider addresses and remote stack details in the message:
+     * log them, but give the client only a generic reason plus the trace id to correlate.
+     */
     @ExceptionHandler(SofaRpcException.class)
     public ResponseEntity<ApiError> rpcFailure(SofaRpcException e) {
-        return error(HttpStatus.BAD_GATEWAY, "downstream_unavailable", e.getMessage());
+        log.warn("downstream RPC failure (errorType={})", e.getErrorType(), e);
+        return error(HttpStatus.BAD_GATEWAY, "downstream_unavailable", "a downstream service is unavailable");
     }
 
     /** Forced-rollback gate: the injected fault surfaces as a plain 500 with a marker code. */

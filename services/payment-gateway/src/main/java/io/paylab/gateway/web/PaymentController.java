@@ -66,7 +66,10 @@ public class PaymentController {
     public ResponseEntity<String> create(
             @RequestHeader(PayLab.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody CreatePaymentRequest request) {
-        String hash = IdempotencyService.sha256("POST/payments|" + request);
+        // JSON, not the record's toString: toString does not escape field values, so two different
+        // bodies (e.g. payerId "a, merchantId=b" + merchantId "c" vs "a" + "b, merchantId=c")
+        // could produce the same hash and one would be replayed the other's response.
+        String hash = IdempotencyService.sha256("POST/payments|" + serialize(request));
         return idempotent(
                 idempotencyKey,
                 "POST/payments",
@@ -176,8 +179,11 @@ public class PaymentController {
         }
     }
 
-    /** Serializes the response once so the live reply and the stored replay are byte-identical. */
-    private String serialize(PaymentResponse body) {
+    /**
+     * Serializes the response once so the live reply and the stored replay are byte-identical;
+     * also the canonical form of request bodies for idempotency hashing.
+     */
+    private String serialize(Object body) {
         try {
             return mapper.writeValueAsString(body);
         } catch (JsonProcessingException e) {
