@@ -113,12 +113,23 @@ target T = round4(A×rate)): payer wallet **DR A+F** / fee revenue **CR F** / FX
 (source ccy) and FX P&L **DR T** / settlement clearing **CR T** (target ccy). The EOD sweep
 (Phase 3) moves clearing → merchant payable.
 
+### Merchant portal (Phase 3)
+
+```bash
+cd merchant-portal && npm ci && npm run dev   # http://localhost:8000, proxies /api -> :8080
+```
+
+Payments list (capture inline), payment detail (lifecycle, FX quote, ledger legs, refund),
+create with idempotency-key replay, and the trial balance. Details in
+[merchant-portal/README.md](merchant-portal/README.md).
+
 Tear down: `docker compose down -v` (`-v` drops the OceanBase data volume).
 
 ## Repo layout
 
 ```
 libs/                 shared modules: paylab-rpc-api (RPC facades/DTOs), paylab-common
+merchant-portal/      antd 5 + @umijs/max web UI over the gateway REST API (Phase 3)
 services/             payment-gateway | risk-service | fx-service | ledger-service | settlement-recon-job
 deploy/docker/        service + sofa-registry Dockerfiles
 deploy/compose/       OceanBase init SQL
@@ -135,7 +146,7 @@ versions.md           single source of truth for every pinned version
 | 0 — Skeleton | compose up: OceanBase + empty SOFABoot services registered in SOFARegistry | ✅ done |
 | 1 — Payment core | e2e happy path + idempotency replay green | ✅ done |
 | 2 — Risk + Seata | forced-rollback test + k6 latency targets | ✅ done |
-| 3 — Frontend + recon | portal shows payment e2e; recon clean | ⏳ next |
+| 3 — Frontend + recon | portal shows payment e2e; recon clean | ⏳ in progress (portal UI built; recon pending) |
 | 4 — Cloud out | same Helm release healthy on GKE + ACK | — |
 | 5 — Stretch | MOSN ingress, burn-rate drill, chaos | — |
 

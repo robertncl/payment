@@ -45,7 +45,18 @@ bumping the tag (`docker buildx imagetools inspect <image>:<tag>` /
 | Component | Version | Notes |
 |---|---|---|
 | Ant Design | **5.29.3** | Spec mandates antd 5 (antd 6 exists — not used) |
-| Umi | **@umijs/max 4.6.72** | Includes dva-style model plugin |
+| Umi | **@umijs/max 4.6.72** | Includes dva-style model plugin (not enabled in the portal) |
+| React / React DOM | **18.3.1** | Umi 4 targets React 18 |
+| TypeScript | **5.9.3** (dev) | `npm run typecheck`; `@types/react` 18.3.31, `@types/react-dom` 18.3.7 |
+| Fontsource (`inter`, `source-serif-4`, `jetbrains-mono`) | **5.3.0** | Self-hosted OFL stand-ins for the ACME design system's faces |
+
+Every package is pinned exactly in `merchant-portal/package.json`, and `package-lock.json` was
+resolved with `npm install --before=2026-10-03`, so no transitive version is newer than a
+two-week cooloff. `npm audit` (2026-10-17) reports 91 advisories, all in Umi 4.6.72's build
+toolchain (webpack/vite/esbuild bundlers, eslint, jest, and the dva/pro-layout plugins the
+portal does not enable). The browser bundle is react, react-dom, antd and Umi's router
+runtime. `npm audit fix` only offers a bogus downgrade to
+`@umijs/max` 4.0.7. Re-check when bumping Umi (4.7.x exists).
 
 ## Quality / Ops
 
