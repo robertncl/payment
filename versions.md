@@ -66,7 +66,7 @@ full resolved tree). Re-check each on the next refresh and drop it once the BOM 
 |---|---|---|---|
 | Netty (`netty.version` + `netty-bom` import) | 4.1.139.Final | 4.1.135 (Boot) | HTTP/2, codec, TLS SNI advisories fixed in 4.1.136/137 |
 | Tomcat (`tomcat.version`) | 10.1.61 | 10.1.55 (Boot) | Critical authz/digest-auth advisories fixed in 10.1.58 |
-| Jackson (`jackson-bom.version` + import) | 2.21.7 | 2.21.4 (Boot) | databind/core DoS + PTV bypasses fixed in 2.21.5–2.21.7 |
+| Jackson (`jackson-bom.version` + import) | 2.22.3 | 2.21.4 (Boot) | databind/core DoS + PTV bypasses fixed in 2.21.5–2.21.7 |
 | Log4j API (`log4j2.version` + import) | 2.26.1 | 2.24.3 (Boot) | GHSA-qv9r-c865-cp47 |
 | OpenTelemetry (`opentelemetry.version` + import) | 1.67.0 | 1.49.0 (Boot) | Baggage propagation memory DoS, fixed 1.62.0 |
 | commons-lang3 | 3.21.0 | 3.17.0 (Boot) | Uncontrolled recursion, fixed 3.18.0 |
