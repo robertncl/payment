@@ -48,20 +48,20 @@
              Boot-managed version; see versions.md "Security overrides") -->
         <netty.version>4.1.139.Final</netty.version>
         <tomcat.version>10.1.61</tomcat.version>
-        <jackson-bom.version>2.22.3</jackson-bom.version>
+        <jackson-bom.version>2.22.4</jackson-bom.version>
         <log4j2.version>2.26.1</log4j2.version>
         <opentelemetry.version>1.67.0</opentelemetry.version>
         <commons-lang3.version>3.21.0</commons-lang3.version>
         <!-- Security overrides of transitive versions pinned by the SOFABoot BOM (sofa-rpc-all's
              grpc/resteasy/guava/commons-io stack) and seata-all (fastjson 1.x, protobuf 3.22) -->
-        <grpc.version>1.85.0</grpc.version>
+        <grpc.version>1.85.1</grpc.version>
         <protobuf.version>3.25.9</protobuf.version>
         <guava.version>33.7.2-jre</guava.version>
         <commons-io.version>2.22.0</commons-io.version>
         <resteasy.version>3.15.6.Final</resteasy.version>
         <!-- fastjson2's 1.x-API compatibility artifact: 1.2.68-1.2.83 has an unpatched default-config
              RCE (CVE-2026-16723); seata-all calls the com.alibaba.fastjson API from its AT undo path -->
-        <fastjson.version>2.0.65</fastjson.version>
+        <fastjson.version>2.0.66</fastjson.version>
         <!-- Hessian serialization + bolt need reflective access on JDK 17+ -->
         <paylab.add.opens>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/sun.security.action=ALL-UNNAMED</paylab.add.opens>
         <!-- org.apache.seata since 2.1.0 (io.seata before). Starter verified Boot-3 ready
