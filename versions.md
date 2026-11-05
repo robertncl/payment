@@ -52,7 +52,7 @@ bumping the tag (`docker buildx imagetools inspect <image>:<tag>` /
 | Component | Version | Notes |
 |---|---|---|
 | JUnit | 5.x (Spring Boot BOM) | |
-| Spotless (`spotless-maven-plugin`) | **3.10.4** | 3.10.3 → 3.10.4 (2026-10-16, published 2026-10-08). Bumped 2.44.5 → 3.8.0 (2026-07-21), 3.8.0 → 3.9.0 (2026-08-08, published 2026-07-27, clears 24h cooloff); requires Java 17+ (already the baseline here). Bundled formatter version moved too — one file needed a re-wrap, fixed via `mvn spotless:apply` and committed. palantir-java-format; `mvn spotless:apply` to fix. `mvn verify` green, no reformatting needed for the 3.9.0 bump. 3.10.2 → 3.10.3 (2026-09-27, published 2026-09-25, clears 24h cooloff): bundled formatter re-wrapped one test (`RiskCheckServiceTest`), fixed via `mvn spotless:apply`; `mvn verify` green |
+| Spotless (`spotless-maven-plugin`) | **3.11.0** | 3.10.4 → 3.11.0 (2026-11-05, published 2026-11-02). Earlier: 3.10.3 → 3.10.4. Bumped 2.44.5 → 3.8.0 (2026-07-21), 3.8.0 → 3.9.0 (2026-08-08, published 2026-07-27, clears 24h cooloff); requires Java 17+ (already the baseline here). Bundled formatter version moved too — one file needed a re-wrap, fixed via `mvn spotless:apply` and committed. palantir-java-format; `mvn spotless:apply` to fix. `mvn verify` green, no reformatting needed for the 3.9.0 bump. 3.10.2 → 3.10.3 (2026-09-27, published 2026-09-25, clears 24h cooloff): bundled formatter re-wrapped one test (`RiskCheckServiceTest`), fixed via `mvn spotless:apply`; `mvn verify` green |
 | k6 | **v2.3.0** (`grafana/k6`, digest-pinned in `scripts/run-k6.sh`) | Phase 2 latency proof |
 | Syft / Grype / Cosign | pin in Phase 4 workflow | DevSecOps stage |
 | GitHub Actions (`actions/checkout`, `actions/setup-java`) | **v7.0.1**, **v6.1.0** | 2026-10-16: setup-java v6.0.1 → v6.1.0 (published 2026-10-14); workflow now runs with `permissions: contents: read` and `persist-credentials: false`. Earlier: Bumped from v4/v4 (2026-07-21); pinned to commit SHA in ci.yml with the tag as a trailing comment. 2026-08-03: corrected checkout's SHA (previously mislabeled — the committed hash actually resolved to v7.0.0, not v7.0.1) and bumped setup-java v5.6.0→v5.7.0 (its previous SHA also resolved to the wrong tag, v5.2.0). Re-verified 2026-08-08: still the newest cooloff-eligible release of each, SHAs unchanged |
@@ -64,7 +64,7 @@ full resolved tree). Re-check each on the next refresh and drop it once the BOM 
 
 | Artifact | Override | BOM default | Why |
 |---|---|---|---|
-| Netty (`netty.version` + `netty-bom` import) | 4.1.139.Final | 4.1.135 (Boot) | HTTP/2, codec, TLS SNI advisories fixed in 4.1.136/137 |
+| Netty (`netty.version` + `netty-bom` import) | 4.1.140.Final | 4.1.135 (Boot) | HTTP/2, codec, TLS SNI advisories fixed in 4.1.136/137 |
 | Tomcat (`tomcat.version`) | 10.1.61 | 10.1.55 (Boot) | Critical authz/digest-auth advisories fixed in 10.1.58 |
 | Jackson (`jackson-bom.version` + import) | 2.22.3 | 2.21.4 (Boot) | databind/core DoS + PTV bypasses fixed in 2.21.5–2.21.7 |
 | Log4j API (`log4j2.version` + import) | 2.26.1 | 2.24.3 (Boot) | GHSA-qv9r-c865-cp47 |
@@ -73,7 +73,7 @@ full resolved tree). Re-check each on the next refresh and drop it once the BOM 
 | fastjson (`com.alibaba:fastjson`) | **2.0.65** (fastjson2 1.x-API compat artifact) | 1.2.83 (seata-all) | CVE-2026-16723: default-config RCE in 1.2.68–1.2.83, no 1.x fix. Seata's AT undo executor calls the `com.alibaba.fastjson` API, so it is replaced, not excluded |
 | gRPC (`grpc-bom`) | 1.85.0 | 1.51.1 (SOFABoot) | HTTP/2 MadeYouReset + reachable assertion (sofa-rpc-all's Triple stack; unused at runtime here) |
 | protobuf (`protobuf-bom`) | 3.25.9 | 3.22.2 (SOFABoot) | DoS fixed 3.25.5; stays on 3.x — Seata's gencode is 3.x |
-| Guava | 33.7.2-jre | 31.1-jre (SOFABoot) | temp-dir advisories |
+| Guava | 33.8.0-jre | 31.1-jre (SOFABoot) | temp-dir advisories |
 | commons-io | 2.22.0 | 2.4 (SOFABoot) | XmlStreamReader DoS / path traversal |
 | RESTEasy 3.x (client, jaxrs, jackson2-provider, netty4) | 3.15.6.Final | 3.6.3.Final (SOFABoot) | sofa-rpc-all's REST stack; unused at runtime here |
 
