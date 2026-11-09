@@ -1,37 +1,17 @@
 import { MERCHANT_ID } from '@/services/api';
-import { themeFor, type Mode } from '@/theme';
+import { theme } from '@/theme';
 import { Link, NavLink, Outlet } from '@umijs/max';
 import { App, ConfigProvider } from 'antd';
-import { useEffect, useState } from 'react';
-
-const DARK_QUERY = '(prefers-color-scheme: dark)';
-
-/** Follows the OS theme and mirrors it onto <html data-theme> for the CSS-variable tokens. */
-function useColorMode(): Mode {
-  const [mode, setMode] = useState<Mode>(() =>
-    window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light',
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(DARK_QUERY);
-    const onChange = (e: MediaQueryListEvent) => setMode(e.matches ? 'dark' : 'light');
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-  useEffect(() => {
-    document.documentElement.dataset.theme = mode;
-  }, [mode]);
-  return mode;
-}
 
 const NAV = [
   { to: '/payments', label: 'Payments' },
   { to: '/trial-balance', label: 'Trial balance' },
 ];
 
+/** ACME app bar: wordmark, up to five destinations, then the account slot pushed right. */
 export default function Layout() {
-  const mode = useColorMode();
   return (
-    <ConfigProvider theme={themeFor(mode)}>
+    <ConfigProvider theme={theme}>
       <App>
         <header className="pl-topbar">
           <Link to="/payments" className="pl-wordmark">

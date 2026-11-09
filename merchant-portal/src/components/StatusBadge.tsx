@@ -1,7 +1,7 @@
 import type { BadgeVariant } from '@/services/format';
 
-// Status glyphs on a 24px grid, 2px stroke. Success and warning share Oat ink, so the icon is
-// load-bearing for them; neutral has none.
+// ACME Badge: status glyphs on a 24px grid, 2px stroke, so status never relies on hue alone.
+// Neutral has none.
 const PATHS: Partial<Record<BadgeVariant, string[]>> = {
   success: ['M20 6 9 17l-5-5'],
   warning: ['M12 3 2 20h20L12 3z', 'M12 10v4', 'M12 17h.01'],

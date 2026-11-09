@@ -104,7 +104,7 @@ export default function TrialBalance() {
               const net = report?.netByCurrency[c] ?? 0;
               return (
                 <Card key={c} title={c}>
-                  <dl className="pl-facts" style={{ gap: '8px 12px' }}>
+                  <dl className="pl-facts" style={{ gap: '8px 16px' }}>
                     <dt>Debits</dt>
                     <dd>{money4(t.d)}</dd>
                     <dt>Credits</dt>
@@ -117,6 +117,13 @@ export default function TrialBalance() {
                       {money4(net)}
                     </dd>
                   </dl>
+                  <div style={{ marginTop: 12 }}>
+                    {net === 0 ? (
+                      <StatusBadge variant="success">Balanced</StatusBadge>
+                    ) : (
+                      <StatusBadge variant="danger">Out of balance</StatusBadge>
+                    )}
+                  </div>
                 </Card>
               );
             })}
@@ -134,9 +141,17 @@ export default function TrialBalance() {
             onChange={setTab}
             aria-label="Currency"
             style={{ marginBottom: -16 }}
-            items={[{ key: 'all', label: `All ${lines.length}` }].concat(
-              currencies.map((c) => ({ key: c, label: `${c} ${lines.filter((l) => l.currency === c).length}` })),
-            )}
+            items={[{ key: 'all', name: 'All', n: lines.length }]
+              .concat(currencies.map((c) => ({ key: c, name: c, n: lines.filter((l) => l.currency === c).length })))
+              .map((t) => ({
+                key: t.key,
+                label: (
+                  <>
+                    {t.name}
+                    <span className="pl-tab-count">{t.n}</span>
+                  </>
+                ),
+              }))}
           />
         </div>
         <Table<TrialBalanceLine>
@@ -146,7 +161,7 @@ export default function TrialBalance() {
           loading={!report && !error}
           pagination={false}
           scroll={{ x: 'max-content' }}
-          style={{ border: '1px solid var(--acme-color-border)', borderRadius: 12, overflow: 'hidden' }}
+          className="pl-table-box"
           summary={() => {
             if (tab === 'all') return null;
             const t = totals(tab);

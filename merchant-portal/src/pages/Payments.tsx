@@ -175,7 +175,7 @@ export default function Payments() {
               <StatusBadge variant="danger">Out of balance</StatusBadge>
             )}
           </div>
-          <Link to="/trial-balance" style={{ fontWeight: 600 }}>
+          <Link to="/trial-balance" style={{ fontSize: 14, fontWeight: 500 }}>
             View trial balance
           </Link>
         </Card>
@@ -191,7 +191,15 @@ export default function Payments() {
             onChange={setTab}
             aria-label="Payment status"
             style={{ marginBottom: -16 }}
-            items={TABS.map((t) => ({ key: t.id, label: `${t.label} ${payments ? count(t.id) : ''}`.trim() }))}
+            items={TABS.map((t) => ({
+              key: t.id,
+              label: (
+                <>
+                  {t.label}
+                  {payments && <span className="pl-tab-count">{count(t.id)}</span>}
+                </>
+              ),
+            }))}
           />
           <div style={{ flex: '0 1 300px', minWidth: 220 }}>
             <label htmlFor="payment-search" className="pl-sr-only">
@@ -215,7 +223,7 @@ export default function Payments() {
           loading={payments === null && !error}
           pagination={false}
           scroll={{ x: 'max-content' }}
-          style={{ border: '1px solid var(--acme-color-border)', borderRadius: 12, overflow: 'hidden' }}
+          className="pl-table-box"
           locale={{
             emptyText: q ? (
               <div className="pl-empty">

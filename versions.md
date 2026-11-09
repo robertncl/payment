@@ -48,7 +48,7 @@ bumping the tag (`docker buildx imagetools inspect <image>:<tag>` /
 | Umi | **@umijs/max 4.6.72** | Includes dva-style model plugin (not enabled in the portal) |
 | React / React DOM | **18.3.1** | Umi 4 targets React 18 |
 | TypeScript | **5.9.3** (dev) | `npm run typecheck`; `@types/react` 18.3.31, `@types/react-dom` 18.3.7 |
-| Fontsource (`inter`, `source-serif-4`, `jetbrains-mono`) | **5.3.0** | Self-hosted OFL stand-ins for the ACME design system's faces |
+| Fontsource (`inter`, `jetbrains-mono`) | **5.3.0** | Self-hosted OFL copies of the ACME design system's faces |
 
 Every package is pinned exactly in `merchant-portal/package.json`, and `package-lock.json` was
 resolved with `npm install --before=2026-10-03`, so no transitive version is newer than a

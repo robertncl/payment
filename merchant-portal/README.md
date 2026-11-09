@@ -1,8 +1,8 @@
 # merchant-portal
 
-The PayLab merchant UI: antd 5 + `@umijs/max`, styled with the ACME design system (warm Oat
-neutrals, one Clay accent, Source Serif 4 / Inter / JetBrains Mono). It talks only to the
-payment-gateway REST API.
+The PayLab merchant UI: antd 5 + `@umijs/max`, styled with the ACME design system v5
+(Graphite neutrals, ink primary, Blue for interaction, Inter / JetBrains Mono). It talks only to
+the payment-gateway REST API.
 
 ```bash
 npm ci
@@ -33,5 +33,8 @@ Point the dev proxy elsewhere with `PAYLAB_GATEWAY_URL=http://host:port npm run 
 - **Decline reasons** come from the `RISK_DECLINED` event's detail, so they show on the
   detail page and after create, not in the list.
 - **Merchant** is fixed to `merchant-1` (`src/services/api.ts`); there is no auth in the lab.
-- **Theme** follows the OS (`prefers-color-scheme`), mirrored onto `<html data-theme>` so the
-  CSS-variable tokens in `src/global.css` and the antd tokens in `src/theme.ts` agree.
+- **Theme** is ACME v5, light only (the system has no dark theme). The token values live twice
+  and must agree: as CSS variables in `src/global.css` for the portal's own markup, and as antd
+  tokens in `src/theme.ts`. Both come from the design system's `tokens.json`. Every colour has
+  one job: ink fills the one primary action per view, Blue marks links, focus and selection, and
+  red on a control means destructive.

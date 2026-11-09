@@ -107,7 +107,7 @@ export default function PaymentDetail() {
 
   if (error) {
     return (
-      <main className="pl-main">
+      <main className="pl-main pl-main--sub">
         <Link to="/payments" className="pl-back">
           Back to payments
         </Link>
@@ -150,7 +150,7 @@ export default function PaymentDetail() {
   if (p.status === 'REFUNDED') entries.push({ type: 'Refund', at: refundedAt, legs: refundLegs(p) });
 
   return (
-    <main className="pl-main">
+    <main className="pl-main pl-main--sub">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Link to="/payments" className="pl-back">
           Back to payments
@@ -190,7 +190,12 @@ export default function PaymentDetail() {
         <Alert
           type="success"
           showIcon
-          icon={<StatusIcon variant="success" size={16} />}
+          icon={
+            // antd tags the icon by cloning it with a className; the span takes it for StatusIcon.
+            <span>
+              <StatusIcon variant="success" size={16} />
+            </span>
+          }
           message="Captured"
           description={`${money2(p.targetAmount ?? 0)} ${p.targetCurrency} is in settlement clearing. The end-of-day sweep moves it to ${p.merchantId}’s payable.`}
         />
@@ -262,15 +267,7 @@ export default function PaymentDetail() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {entries.map((e) => (
                   <div key={e.type} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        letterSpacing: '0.05em',
-                        textTransform: 'uppercase',
-                        color: 'var(--acme-color-text-muted)',
-                      }}
-                    >
+                    <span className="pl-kicker">
                       {e.type}
                       {e.at ? ` · ${atSec(e.at)}` : ''}
                     </span>

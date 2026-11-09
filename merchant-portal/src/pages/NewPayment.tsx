@@ -98,7 +98,7 @@ export default function NewPayment() {
   const show = (cond: boolean) => touched && cond;
 
   return (
-    <main className="pl-main" style={{ gap: 24 }}>
+    <main className="pl-main pl-main--sub" style={{ gap: 24 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Link to="/payments" className="pl-back">
           Back to payments
@@ -117,7 +117,7 @@ export default function NewPayment() {
           description={
             <>
               <span className="pl-mono">{result.payment.id}</span> is risk approved.{' '}
-              <Link to={`/payments/${result.payment.id}`} style={{ fontWeight: 600 }}>
+              <Link to={`/payments/${result.payment.id}`} style={{ fontWeight: 500 }}>
                 Open the payment
               </Link>{' '}
               to capture it.
@@ -159,8 +159,8 @@ export default function NewPayment() {
       <div className="pl-split">
         <Card className="pl-split__main" styles={{ body: { display: 'flex', flexDirection: 'column', gap: 8 } }}>
           <Form layout="vertical" requiredMark={false} onFinish={submit} aria-label="Payment details">
-            <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
-              <legend className="pl-h2" style={{ marginBottom: 16 }}>
+            <fieldset className="pl-fieldset">
+              <legend className="pl-legend">
                 Who pays
               </legend>
               <Form.Item
@@ -180,8 +180,8 @@ export default function NewPayment() {
               </Form.Item>
             </fieldset>
 
-            <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
-              <legend className="pl-h2" style={{ margin: '16px 0' }}>
+            <fieldset className="pl-fieldset">
+              <legend className="pl-legend">
                 How much
               </legend>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', columnGap: 20 }}>
@@ -215,8 +215,8 @@ export default function NewPayment() {
               </Form.Item>
             </fieldset>
 
-            <fieldset style={{ margin: 0, padding: 0, border: 0 }}>
-              <legend className="pl-h2" style={{ margin: '16px 0' }}>
+            <fieldset className="pl-fieldset">
+              <legend className="pl-legend">
                 Retry safety
               </legend>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -253,7 +253,7 @@ export default function NewPayment() {
               <Button type="primary" htmlType="submit" loading={submitting} disabled={sameCurrency}>
                 Create payment
               </Button>
-              <Link to="/payments" className="ant-btn ant-btn-text" style={{ display: 'inline-flex', alignItems: 'center', padding: '0 15px', fontWeight: 600 }}>
+              <Link to="/payments" className="ant-btn ant-btn-text" style={{ display: 'inline-flex', alignItems: 'center', padding: '0 15px', fontWeight: 500 }}>
                 Cancel
               </Link>
             </div>
@@ -290,7 +290,7 @@ export default function NewPayment() {
                 flexDirection: 'column',
                 gap: 8,
                 fontSize: 14,
-                color: 'var(--acme-color-text-muted)',
+                lineHeight: 1.5,
               }}
             >
               <li>Payer and merchant are not on the denylist.</li>
