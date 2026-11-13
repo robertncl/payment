@@ -1,0 +1,574 @@
+/* Self-hosted OFL faces: Inter is ACME's one family, JetBrains Mono for IDs and codes. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/600.css';
+
+/* ACME design system v5 tokens (tokens.json + the type, tracking and motion tokens from
+   components/bundle.css), for the portal's own markup. antd gets the same values through
+   src/theme.ts. Light theme only: v5 has no dark theme. */
+:root {
+  color-scheme: light;
+  accent-color: var(--acme-color-selected);
+
+  --acme-gray-0: #ffffff;
+  --acme-gray-50: #f8f9fa;
+  --acme-gray-100: #f1f3f5;
+  --acme-gray-200: #e2e5e9;
+  --acme-gray-300: #c8cdd3;
+  --acme-gray-400: #838a94;
+  --acme-gray-500: #676e78;
+  --acme-gray-600: #525961;
+  --acme-gray-700: #3c424a;
+  --acme-gray-800: #272c32;
+  --acme-gray-900: #15181d;
+  --acme-red-50: #fff0ee;
+  --acme-red-200: #ffbdb6;
+  --acme-red-600: #c91c15;
+  --acme-red-700: #a91515;
+  --acme-blue-50: #eef4ff;
+  --acme-blue-200: #bcd0fb;
+  --acme-blue-600: #1f57c9;
+  --acme-blue-700: #1a47a6;
+  --acme-blue-800: #163a85;
+  --acme-green-50: #ebf7f0;
+  --acme-green-200: #b5e2c6;
+  --acme-green-700: #11643f;
+  --acme-green-800: #0d5034;
+  --acme-amber-50: #fef6e6;
+  --acme-amber-200: #f6d8a0;
+  --acme-amber-700: #834808;
+  --acme-amber-800: #6a3a0b;
+
+  --acme-color-canvas: var(--acme-gray-0);
+  --acme-color-surface: var(--acme-gray-50);
+  --acme-color-surface-hover: var(--acme-gray-100);
+  --acme-color-surface-raised: var(--acme-gray-0);
+  --acme-color-border: var(--acme-gray-200);
+  --acme-color-border-control: var(--acme-gray-300);
+  --acme-color-border-strong: var(--acme-gray-400);
+  --acme-color-text: var(--acme-gray-900);
+  --acme-color-text-muted: var(--acme-gray-600);
+  --acme-color-text-subtle: var(--acme-gray-500);
+  --acme-color-primary: var(--acme-gray-900);
+  --acme-color-on-primary: var(--acme-gray-0);
+  --acme-color-mark: var(--acme-red-600);
+  --acme-color-selected: var(--acme-blue-600);
+  --acme-color-selected-soft: var(--acme-blue-50);
+  --acme-color-link: var(--acme-blue-700);
+  --acme-color-link-hover: var(--acme-blue-800);
+  --acme-color-focus: var(--acme-blue-600);
+  --acme-color-success: var(--acme-green-700);
+  --acme-color-success-soft: var(--acme-green-50);
+  --acme-color-success-soft-text: var(--acme-green-800);
+  --acme-color-success-border: var(--acme-green-200);
+  --acme-color-warning: var(--acme-amber-700);
+  --acme-color-warning-soft: var(--acme-amber-50);
+  --acme-color-warning-soft-text: var(--acme-amber-800);
+  --acme-color-warning-border: var(--acme-amber-200);
+  --acme-color-danger: var(--acme-red-700);
+  --acme-color-danger-soft: var(--acme-red-50);
+  --acme-color-danger-soft-text: var(--acme-red-700);
+  --acme-color-danger-border: var(--acme-red-200);
+  --acme-color-info: var(--acme-blue-700);
+  --acme-color-info-soft: var(--acme-blue-50);
+  --acme-color-info-soft-text: var(--acme-blue-800);
+  --acme-color-info-border: var(--acme-blue-200);
+  --acme-shadow-sm: 0 1px 2px #1018280d;
+  --acme-shadow-md: 0 4px 12px -2px #10182814;
+  --acme-shadow-lg: 0 16px 40px -8px #1018282e;
+
+  --acme-radius-sm: 4px;
+  --acme-radius-md: 6px;
+  --acme-radius-lg: 10px;
+  --acme-radius-xl: 12px;
+  --acme-radius-full: 999px;
+
+  --acme-font-sans: 'Inter', 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif;
+  --acme-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --acme-tracking-tight: -0.02em;
+  --acme-tracking-snug: -0.011em;
+  --acme-tracking-caps: 0.06em;
+  --acme-duration-fast: 100ms;
+  --acme-duration-base: 150ms;
+  --acme-ease-out: cubic-bezier(0.2, 0.8, 0.4, 1);
+}
+
+body {
+  margin: 0;
+  background: var(--acme-color-canvas);
+  color: var(--acme-color-text);
+  font-family: var(--acme-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--acme-color-link);
+  text-underline-offset: 3px;
+}
+a:hover {
+  color: var(--acme-color-link-hover);
+}
+
+:is(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--acme-color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* ── Top bar (ACME .acme-topbar): full width, opaque, bottom hairline ── */
+.pl-topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  min-height: 56px;
+  box-sizing: border-box;
+  padding: 8px 20px;
+  background: var(--acme-color-canvas);
+  border-bottom: 1px solid var(--acme-color-border);
+}
+.pl-topbar__nav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.pl-topbar__link {
+  padding: 4px 12px;
+  border-radius: var(--acme-radius-md);
+  color: var(--acme-color-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-decoration: none;
+  transition:
+    background-color var(--acme-duration-base) var(--acme-ease-out),
+    color var(--acme-duration-base) var(--acme-ease-out);
+}
+.pl-topbar__link:hover {
+  color: var(--acme-color-text);
+  background: var(--acme-color-surface);
+}
+.pl-topbar__link[aria-current='page'],
+.pl-topbar__link.active {
+  color: var(--acme-color-text);
+  background: var(--acme-color-surface-hover);
+}
+.pl-topbar__account {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--acme-color-text-muted);
+}
+
+/* Wordmark (ACME .acme-wordmark proportions) */
+.pl-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  color: var(--acme-color-text);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+.pl-wordmark:hover {
+  color: var(--acme-color-text);
+}
+.pl-wordmark__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6em;
+  height: 1.6em;
+  border-radius: 0.3em;
+  background: var(--acme-color-mark);
+  color: var(--acme-color-on-primary);
+  letter-spacing: 0;
+}
+
+/* ── Page ── */
+.pl-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.pl-main--sub {
+  padding-top: 32px;
+}
+
+.pl-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.pl-h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: var(--acme-tracking-tight);
+  font-variant-numeric: tabular-nums;
+  text-wrap: balance;
+}
+.pl-h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: var(--acme-tracking-snug);
+}
+.pl-lede {
+  margin: 0;
+  font-size: 16px;
+  color: var(--acme-color-text-muted);
+  text-wrap: pretty;
+}
+.pl-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--acme-color-text-muted);
+  max-width: 80ch;
+}
+.pl-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: var(--acme-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acme-color-text-muted);
+}
+.pl-mono {
+  font-family: var(--acme-font-mono);
+  font-size: 0.929em;
+}
+.pl-num {
+  font-variant-numeric: tabular-nums;
+}
+.pl-back {
+  font-size: 14px;
+  font-weight: 500;
+  align-self: flex-start;
+}
+.pl-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+.pl-split__main {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.pl-split__aside {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.pl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+}
+.pl-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── antd surfaces, aligned to ACME cards, tables and alerts ── */
+/* Card (ACME .acme-card): hairline + shadow-sm, 10px radius, 16/600 title inside 20px padding,
+   no divider under the title. */
+.ant-card {
+  box-shadow: var(--acme-shadow-sm);
+}
+.ant-card .ant-card-head {
+  min-height: 0;
+  padding: 20px 20px 0;
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+.ant-card .ant-card-head-title {
+  font-weight: 600;
+  letter-spacing: var(--acme-tracking-snug);
+}
+.ant-card .ant-card-head + .ant-card-body {
+  padding-top: 12px;
+}
+.ant-table {
+  font-variant-numeric: tabular-nums;
+}
+.ant-table-wrapper .ant-table-thead > tr > th {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ant-alert .ant-alert-message {
+  font-weight: 600;
+}
+/* ACME alerts: a 16px icon in the status hue beside an ink title. */
+.ant-alert .ant-alert-icon {
+  align-self: flex-start;
+  margin-top: 3px;
+}
+.ant-alert-success .ant-alert-icon {
+  color: var(--acme-color-success);
+}
+.ant-alert-warning .ant-alert-icon {
+  color: var(--acme-color-warning);
+}
+.ant-alert-error .ant-alert-icon {
+  color: var(--acme-color-danger);
+}
+.ant-alert-info .ant-alert-icon {
+  color: var(--acme-color-info);
+}
+/* Tabs beside a heading or search shrink and scroll instead of widening the page. */
+.pl-page-head > .ant-tabs {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Tab counts (ACME .acme-tab__count): a pill is reserved for exactly this. */
+.pl-tab-count {
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: var(--acme-radius-full);
+  background: var(--acme-color-surface-hover);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--acme-color-text-muted);
+}
+.pl-table-box {
+  border: 1px solid var(--acme-color-border);
+  border-radius: var(--acme-radius-lg);
+  overflow: hidden;
+}
+
+.pl-metric {
+  margin: 0;
+  font-size: 2.25rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: var(--acme-tracking-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.pl-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 16px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.pl-facts dt {
+  color: var(--acme-color-text-muted);
+}
+.pl-facts dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.pl-facts .pl-facts__rule {
+  padding-top: 10px;
+  border-top: 1px solid var(--acme-color-border);
+}
+/* Carry the rule across the column gap so it reads as one line. */
+.pl-facts dt.pl-facts__rule {
+  margin-right: -16px;
+  padding-right: 16px;
+}
+
+/* ── Status badge (ACME .acme-badge): 4px radius, hairline, the status names itself ── */
+.pl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border: 1px solid var(--acme-color-border);
+  border-radius: var(--acme-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  background: var(--acme-color-surface-hover);
+  color: var(--acme-color-text-muted);
+}
+.pl-badge svg {
+  flex: none;
+}
+.pl-badge--success {
+  background: var(--acme-color-success-soft);
+  color: var(--acme-color-success-soft-text);
+  border-color: var(--acme-color-success-border);
+}
+.pl-badge--warning {
+  background: var(--acme-color-warning-soft);
+  color: var(--acme-color-warning-soft-text);
+  border-color: var(--acme-color-warning-border);
+}
+.pl-badge--danger {
+  background: var(--acme-color-danger-soft);
+  color: var(--acme-color-danger-soft-text);
+  border-color: var(--acme-color-danger-border);
+}
+.pl-badge--info {
+  background: var(--acme-color-info-soft);
+  color: var(--acme-color-info-soft-text);
+  border-color: var(--acme-color-info-border);
+}
+
+/* ── Lifecycle: one bordered strip; reached steps carry an ink rule, the current one is
+   selected (blue rule on the selected tint). ── */
+.pl-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  border: 1px solid var(--acme-color-border);
+  border-radius: var(--acme-radius-lg);
+  overflow: hidden;
+  background: var(--acme-color-surface-raised);
+}
+.pl-step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+  border-top: 3px solid var(--acme-color-border);
+}
+.pl-step__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--acme-color-text-muted);
+}
+.pl-step__meta {
+  font-size: 12px;
+  color: var(--acme-color-text-muted);
+}
+.pl-step--done {
+  border-top-color: var(--acme-color-text);
+}
+.pl-step--done .pl-step__label {
+  color: var(--acme-color-text);
+}
+.pl-step--current {
+  border-top-color: var(--acme-color-selected);
+  background: var(--acme-color-selected-soft);
+}
+.pl-step--current .pl-step__label {
+  color: var(--acme-color-text);
+}
+
+/* ── Timeline ── */
+.pl-timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pl-timeline li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--acme-color-border);
+}
+.pl-timeline li:first-child {
+  padding-top: 0;
+}
+.pl-timeline li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.pl-timeline__time {
+  flex: 0 0 80px;
+  padding-top: 2px;
+  font-size: 12px;
+  color: var(--acme-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.pl-timeline__body {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── Forms: ACME groups fields under a 16/600 legend, groups split by a hairline ── */
+/* Scoped under .ant-form to outrank antd's own fieldset/legend reset. */
+.ant-form .pl-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.ant-form .pl-fieldset + .pl-fieldset {
+  margin-top: 8px;
+  padding-top: 24px;
+  border-top: 1px solid var(--acme-color-border);
+}
+.ant-form .pl-legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 16px;
+  border: 0;
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: var(--acme-tracking-snug);
+  color: var(--acme-color-text);
+}
+.ant-form .pl-legend + * {
+  clear: both;
+}
+.ant-form-vertical .ant-form-item-label > label {
+  font-weight: 500;
+}
+.ant-form-item .ant-form-item-explain {
+  font-size: 12px;
+}
+
+.pl-empty {
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.pl-empty p {
+  margin: 0;
+}
