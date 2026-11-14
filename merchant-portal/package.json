@@ -25,5 +25,37 @@
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@babel/core": "7.29.13",
+    "@babel/runtime": "7.29.14",
+    "decode-uri-component": "0.5.1",
+    "esbuild": "0.25.12",
+    "postcss": "8.5.33",
+    "send": "0.19.2",
+    "vite": "6.4.6",
+    "@vitejs/plugin-react": "4.7.0",
+    "@hono/node-server": "2.1.8",
+    "isomorphic-fetch": {
+      "node-fetch": "2.7.0"
+    },
+    "dva-immer": {
+      "immer": "9.0.21"
+    },
+    "@ant-design/pro-layout": {
+      "path-to-regexp": "8.4.2"
+    },
+    "@umijs/bundler-mako": {
+      "glob": "14.0.6",
+      "minimatch": "11.0.8"
+    },
+    "@umijs/preset-umi": {
+      "react-router": "6.30.6",
+      "react-router-dom": "6.30.6",
+      "path-to-regexp": "1.9.0"
+    },
+    "react-router@4.3.1": {
+      "path-to-regexp": "1.9.0"
+    }
   }
 }
