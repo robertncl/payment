@@ -39,6 +39,9 @@
     "isomorphic-fetch": {
       "node-fetch": "2.7.0"
     },
+    "@umijs/plugins": {
+      "axios": "0.35.0"
+    },
     "dva-immer": {
       "immer": "9.0.21"
     },
