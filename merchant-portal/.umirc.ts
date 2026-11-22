@@ -1,6 +1,6 @@
 import { defineConfig } from '@umijs/max';
 
-// Merchant portal: antd 5 themed with ACME tokens (src/theme.ts) under our own layout;
+// Merchant portal: antd 6 themed with ACME tokens (src/theme.ts) under our own layout;
 // no ProLayout, no antd plugin. The dev server proxies /api to the gateway from compose.
 export default defineConfig({
   layout: false,
@@ -19,4 +19,6 @@ export default defineConfig({
     },
   },
   npmClient: 'npm',
+  // antd 6 chunks share minified helper names; umi requires IIFE minification to avoid conflicts.
+  esbuildMinifyIIFE: true,
 });
