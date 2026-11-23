@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BTC/USDT spot · ACME Exchange</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="styles/modernist-tokens.css">
+<link rel="stylesheet" href="styles/acme-modernist.css">
+<style>
+body{margin:0}
+a{color:var(--blue)}a:hover{color:var(--blue-hover)}
+a.acme-btn{text-decoration:none}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="ds/components/bundle.js"></script>
+<script src="js/runtime.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// Screen logic and markup ported from the ACME Exchange design canvas (Trade.dc.html).
+var NAV = [
+  { label: 'Markets', href: 'index.html' },
+  { label: 'Spot', href: 'trade.html' },
+  { label: 'Futures', href: 'futures.html' },
+  { label: 'Earn', href: 'earn.html' },
+  { label: 'Wallet', href: 'wallet.html' }
+];
+var LAST = 95128.40;
+var AVAIL = { USDT: 7412.38, BTC: 0.08214 };
+var INTERVALS = [
+  { id: '1m', label: '1m', min: 1 }, { id: '5m', label: '5m', min: 5 }, { id: '15m', label: '15m', min: 15 },
+  { id: '1h', label: '1h', min: 60 }, { id: '4h', label: '4h', min: 240 }, { id: '1D', label: '1D', min: 1440 }
+];
+var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+var NOW = Date.UTC(2026, 9, 17, 14, 30);
+var UP = 'var(--acme-color-text)', DOWN = 'var(--acme-color-text)';
+
+function rng(seed) { var s = seed; return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }
+function fmt(n, dp) { return n.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp }); }
+function num(s) { var n = parseFloat(String(s).replace(/,/g, '')); return isFinite(n) ? n : 0; }
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function hms(t) { return pad2(Math.floor(t / 3600) % 24) + ':' + pad2(Math.floor(t / 60) % 60) + ':' + pad2(t % 60); }
+
+function genCandles(seed, n, last, vol) {
+  var r = rng(seed), closes = [], v = 0, i;
+  for (i = 0; i < n; i++) { v += (r() - 0.47) * vol; closes.push(v); }
+  var shift = last - closes[n - 1], prev = closes[0] + shift - vol * 0.3, out = [];
+  for (i = 0; i < n; i++) {
+    var c = closes[i] + shift, o = prev;
+    out.push({ o: o, c: c, h: Math.max(o, c) + r() * vol * 0.6, l: Math.min(o, c) - r() * vol * 0.6, v: 0.25 + r() * 0.75 + Math.abs(c - o) / vol * 0.4 });
+    prev = c;
+  }
+  return out;
+}
+function niceStep(range, count) {
+  var rough = range / count, mag = Math.pow(10, Math.floor(Math.log10(rough))), steps = [1, 2, 2.5, 5, 10];
+  for (var i = 0; i < steps.length; i++) { if (steps[i] * mag >= rough) return steps[i] * mag; }
+  return 10 * mag;
+}
+
+var BOOK = (function () {
+  var r = rng(97), asks = [], bids = [], ca = 0, cb = 0, a = 95131.20, b = 95126.80, i;
+  for (i = 0; i < 10; i++) { var qa = 0.01 + r() * 0.55; ca += qa; asks.push({ p: a, q: qa, cum: ca }); a += 1.5 + r() * 6; }
+  for (i = 0; i < 10; i++) { var qb = 0.01 + r() * 0.55; cb += qb; bids.push({ p: b, q: qb, cum: cb }); b -= 1.5 + r() * 6; }
+  return { asks: asks, bids: bids, max: Math.max(ca, cb) };
+})();
+
+var TRADES = (function () {
+  var r = rng(131), out = [], t = 14 * 3600 + 32 * 60 + 7, p = LAST;
+  for (var i = 0; i < 14; i++) {
+    var up = i === 0 ? true : r() > 0.45;
+    out.push({ price: fmt(p, 2), amount: fmt(0.0005 + r() * 0.24, 5), time: hms(t), color: up ? UP : DOWN });
+    p += (r() - 0.5) * 9; t -= 1 + Math.floor(r() * 9);
+  }
+  return out;
+})();
+
+var OPEN = [
+  { id: 'o1', time: '14:21:07', side: 'buy', type: 'Limit', price: 94500, qty: 0.05, filled: 0 },
+  { id: 'o2', time: '13:58:42', side: 'sell', type: 'Limit', price: 96800, qty: 0.025, filled: 0.01 }
+];
+var HISTORY = [
+  { time: '12:40:19', side: 'buy', type: 'Market', price: null, qty: 0.012, filled: 0.012, status: 'Filled' },
+  { time: '11:02:55', side: 'sell', type: 'Limit', price: 95400, qty: 0.03, filled: 0, status: 'Cancelled' },
+  { time: '09:17:30', side: 'buy', type: 'Limit', price: 93850, qty: 0.04, filled: 0.04, status: 'Filled' }
+];
+var FILLS = [
+  { time: '13:58:51', side: 'sell', price: 96800, qty: 0.01, role: 'Maker' },
+  { time: '12:40:19', side: 'buy', price: 94962.15, qty: 0.012, role: 'Taker' },
+  { time: '09:17:30', side: 'buy', price: 93850, qty: 0.04, role: 'Maker' }
+];
+var BADGE = { Open: 'info', Partial: 'warning', Filled: 'success', Cancelled: 'neutral' };
+
+class Component extends DCLogic {
+  state = { interval: '15m', ordersTab: 'open', side: 'buy', orderType: 'limit', price: '95,128.40', amount: '', amountError: '', placed: '', open: OPEN, history: HISTORY, fills: FILLS, seq: 0 };
+
+  submit() {
+    var s = this.state, amt = num(s.amount), isMarket = s.orderType === 'market';
+    var px = isMarket ? LAST : num(s.price);
+    if (amt <= 0) { this.setState({ amountError: 'Enter an amount in BTC. The minimum order is 5 USDT.', placed: '' }); return; }
+    if (px * amt < 5) { this.setState({ amountError: 'Order value is under the 5 USDT minimum. Increase the amount.', placed: '' }); return; }
+    var verb = s.side === 'buy' ? 'Buy' : 'Sell';
+    var seq = s.seq + 1, time = hms(14 * 3600 + 32 * 60 + 10 + seq * 3);
+    if (isMarket) {
+      this.setState({
+        amount: '', amountError: '', seq: seq,
+        history: [{ time: time, side: s.side, type: 'Market', price: null, qty: amt, filled: amt, status: 'Filled' }].concat(s.history),
+        fills: [{ time: time, side: s.side, price: s.side === 'buy' ? 95131.20 : 95126.80, qty: amt, role: 'Taker' }].concat(s.fills),
+        placed: verb + ' ' + fmt(amt, 5) + ' BTC filled at market.'
+      });
+    } else {
+      this.setState({
+        amount: '', amountError: '', seq: seq, ordersTab: 'open',
+        open: [{ id: 'n' + seq, time: time, side: s.side, type: 'Limit', price: px, qty: amt, filled: 0 }].concat(s.open),
+        placed: verb + ' ' + fmt(amt, 5) + ' BTC at ' + fmt(px, 2) + ' is open.'
+      });
+    }
+  }
+
+  cancel(id) {
+    var s = this.state, o = s.open.filter(function (x) { return x.id === id; })[0];
+    if (!o) return;
+    this.setState({
+      open: s.open.filter(function (x) { return x.id !== id; }),
+      history: [{ time: o.time, side: o.side, type: o.type, price: o.price, qty: o.qty, filled: o.filled, status: 'Cancelled' }].concat(s.history)
+    });
+  }
+
+  renderVals() {
+    var self = this, s = this.state;
+    var mono = (this.props.candles || 'directional') === 'monochrome';
+
+    var iv = INTERVALS.filter(function (x) { return x.id === s.interval; })[0] || INTERVALS[2];
+    var ivIndex = INTERVALS.indexOf(iv);
+    var n = 64, vol = 120 * Math.sqrt(iv.min / 15);
+    var cs = genCandles(53 + ivIndex * 17, n, LAST, vol);
+    var lo = Infinity, hi = -Infinity, vmax = 0;
+    cs.forEach(function (c) { lo = Math.min(lo, c.l); hi = Math.max(hi, c.h); vmax = Math.max(vmax, c.v); });
+    var pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+    function y(p) { return (hi - p) / (hi - lo) * 100; }
+    var candles = cs.map(function (c) {
+      var up = c.c >= c.o, color = mono ? 'var(--acme-color-data)' : (up ? UP : DOWN);
+      var top = y(Math.max(c.o, c.c));
+      return {
+        wickTop: y(c.h).toFixed(2), wickH: (y(c.l) - y(c.h)).toFixed(2),
+        bodyTop: top.toFixed(2), bodyH: Math.max(0.4, y(Math.min(c.o, c.c)) - top).toFixed(2),
+        stroke: color, fill: up ? 'var(--acme-color-surface-raised)' : color,
+        volH: (c.v / vmax * 100).toFixed(1)
+      };
+    });
+    var step = niceStep(hi - lo, 5), ticks = [];
+    for (var p = Math.ceil(lo / step) * step; p <= hi; p += step) {
+      var tt = y(p);
+      if (tt > 4 && tt < 96) ticks.push({ top: tt.toFixed(2), label: fmt(p, step < 1 ? 2 : 0) });
+    }
+    var timeLabels = [];
+    for (var k = 4; k < n; k += 15) {
+      var d = new Date(NOW - (n - 1 - k) * iv.min * 60000);
+      timeLabels.push({ label: iv.min >= 1440 ? MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() : pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) });
+    }
+    var lc = cs[n - 1];
+
+    var asks = BOOK.asks.slice().reverse().map(function (r) { return row(r, 'ask'); });
+    var bids = BOOK.bids.map(function (r) { return row(r, 'bid'); });
+    function row(r, kind) {
+      return {
+        price: fmt(r.p, 2), qty: fmt(r.q, 5), cum: fmt(r.cum, 4), depth: (r.cum / BOOK.max * 100).toFixed(1),
+        label: 'Use ' + kind + ' price ' + fmt(r.p, 2),
+        pick: function () { self.setState({ price: fmt(r.p, 2), orderType: 'limit', amountError: '' }); }
+      };
+    }
+    var spread = BOOK.asks[0].p - BOOK.bids[0].p;
+
+    function sideCell(o) { return { sideLabel: o.side === 'buy' ? 'Buy' : 'Sell', sideColor: o.side === 'buy' ? UP : DOWN }; }
+    var openRows = s.open.map(function (o) {
+      var status = o.filled > 0 ? 'Partial' : 'Open', sc = sideCell(o);
+      return { time: o.time, sideLabel: sc.sideLabel, sideColor: sc.sideColor, type: o.type, price: fmt(o.price, 2), qty: fmt(o.qty, 5),
+        filled: fmt(o.filled / o.qty * 100, 0) + '%', status: status, badge: BADGE[status],
+        cancelLabel: 'Cancel ' + sc.sideLabel.toLowerCase() + ' order at ' + fmt(o.price, 2),
+        cancel: function () { self.cancel(o.id); } };
+    });
+    var historyRows = s.history.map(function (o) {
+      var sc = sideCell(o);
+      return { time: o.time, sideLabel: sc.sideLabel, sideColor: sc.sideColor, type: o.type, price: o.price === null ? 'Market' : fmt(o.price, 2),
+        qty: fmt(o.qty, 5), filled: fmt(o.filled / o.qty * 100, 0) + '%', status: o.status, badge: BADGE[o.status] };
+    });
+    var fillRows = s.fills.map(function (f) {
+      var sc = sideCell(f), value = f.price * f.qty;
+      return { time: f.time, sideLabel: sc.sideLabel, sideColor: sc.sideColor, price: fmt(f.price, 2), qty: fmt(f.qty, 5),
+        value: fmt(value, 2), fee: fmt(value * 0.001, 4) + ' USDT', role: f.role };
+    });
+
+    var isBuy = s.side === 'buy', isMarket = s.orderType === 'market';
+    var px = isMarket ? LAST : num(s.price), amt = num(s.amount), total = px * amt;
+    function sideStyle(active, color) {
+      return active
+        ? { border: 'var(--acme-color-selected)', bg: 'var(--acme-color-selected-soft)', shadow: 'var(--acme-shadow-sm)', ink: 'var(--acme-color-selected)' }
+        : { border: 'transparent', bg: 'transparent', shadow: 'none', ink: 'var(--acme-color-text-muted)' };
+    }
+    var bs = sideStyle(isBuy, UP), ss = sideStyle(!isBuy, DOWN);
+    var pcts = [25, 50, 75, 100].map(function (pc) {
+      return { label: pc === 100 ? 'Max' : pc + '%', aria: 'Use ' + pc + '% of available balance',
+        pick: function () {
+          var f = pc / 100, q = isBuy ? (px > 0 ? AVAIL.USDT * f / (px * 1.001) : 0) : AVAIL.BTC * f;
+          self.setState({ amount: (Math.floor(q * 1e5) / 1e5).toFixed(5), amountError: '' });
+        } };
+    });
+
+    return {
+      navLinks: NAV,
+
+      intervals: INTERVALS.map(function (x) { return { id: x.id, label: x.label }; }),
+      interval: iv.id,
+      setInterval: function (id) { self.setState({ interval: id }); },
+      intervalPanelId: 'interval-panel-' + iv.id,
+      intervalTabId: 'interval-tab-' + iv.id,
+      chartLabel: 'BTC/USDT ' + iv.label + ' candlestick chart, last price ' + fmt(LAST, 2),
+      ohlc: 'O ' + fmt(lc.o, 2) + '  H ' + fmt(lc.h, 2) + '  L ' + fmt(lc.l, 2) + '  C ' + fmt(lc.c, 2),
+      candles: candles, ticks: ticks, timeLabels: timeLabels,
+      lastTop: y(LAST).toFixed(2), lastLabel: fmt(LAST, 2),
+
+      asks: asks, bids: bids,
+      spread: fmt(spread, 2) + ' (' + (spread / LAST * 100).toFixed(4) + '%)',
+      trades: TRADES,
+
+      orderTabs: [{ id: 'open', label: 'Open', count: s.open.length }, { id: 'history', label: 'History' }, { id: 'fills', label: 'Trades' }],
+      ordersTab: s.ordersTab,
+      setOrdersTab: function (id) { self.setState({ ordersTab: id }); },
+      ordersPanelId: 'orders-panel-' + s.ordersTab,
+      ordersTabId: 'orders-tab-' + s.ordersTab,
+      showOpen: s.ordersTab === 'open', showHistory: s.ordersTab === 'history', showFills: s.ordersTab === 'fills',
+      openRows: openRows, noOpen: openRows.length === 0, historyRows: historyRows, fillRows: fillRows,
+
+      pickBuy: function () { self.setState({ side: 'buy', amountError: '', placed: '' }); },
+      pickSell: function () { self.setState({ side: 'sell', amountError: '', placed: '' }); },
+      buyPressed: isBuy ? 'true' : 'false', sellPressed: isBuy ? 'false' : 'true',
+      buyBorder: bs.border, buyBg: bs.bg, buyShadow: bs.shadow, buyInk: bs.ink,
+      sellBorder: ss.border, sellBg: ss.bg, sellShadow: ss.shadow, sellInk: ss.ink,
+      typeTabs: [{ id: 'limit', label: 'Limit' }, { id: 'market', label: 'Market' }],
+      orderType: s.orderType,
+      setOrderType: function (id) { self.setState({ orderType: id, amountError: '' }); },
+      typePanelId: 'otype-panel-' + s.orderType,
+      typeTabId: 'otype-tab-' + s.orderType,
+      availLabel: isBuy ? fmt(AVAIL.USDT, 2) + ' USDT' : fmt(AVAIL.BTC, 5) + ' BTC',
+      isMarket: isMarket,
+      priceValue: isMarket ? '' : s.price,
+      pricePlaceholder: isMarket ? 'Best available price' : '0.00',
+      priceHelp: isMarket ? 'Fills now at the best price in the book.' : '',
+      onPrice: function (e) { self.setState({ price: e.target.value }); },
+      amount: s.amount,
+      amountError: s.amountError,
+      onAmount: function (e) { self.setState({ amount: e.target.value, amountError: '' }); },
+      pcts: pcts,
+      totalLabel: amt > 0 ? (isMarket ? '≈ ' : '') + fmt(total, 2) + ' USDT' : '—',
+      feeLabel: amt > 0 ? fmt(total * 0.001, 4) + ' USDT' : '—',
+      formSide: isBuy ? 'buy' : 'sell',
+      sideInk: 'var(--acme-color-text)',
+      submitVariant: 'primary',
+      submitLabel: (isBuy ? 'Buy ' : 'Sell ') + (amt > 0 ? fmt(amt, 5) + ' BTC' : 'BTC'),
+      onSubmit: function (e) { e.preventDefault(); self.submit(); },
+      hasPlaced: !!s.placed,
+      placedText: s.placed,
+
+      btcAvail: fmt(AVAIL.BTC, 5) + ' available',
+      usdtAvail: fmt(AVAIL.USDT, 2) + ' available'
+    };
+  }
+}
+
+function template(v) {
+return html`<div style="min-height: 100vh; background: var(--acme-color-canvas); color: var(--acme-color-text); font-family: var(--acme-font-sans); font-size: 14px; line-height: 1.5;">
+<${DS.Topbar} links=${v.navLinks} current="Spot">
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+<${DS.Badge} variant="warning">Unverified<//>
+<span style="color: var(--acme-color-text-muted);">trader@example.com</span>
+<a class="acme-btn acme-btn--ghost acme-btn--sm" href="sign-in.html">Sign out</a>
+</div>
+<//>
+
+<div style="background: var(--acme-color-surface-raised); border-bottom: 1px solid var(--acme-color-border);">
+<div style="padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span aria-hidden="true" style="display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--acme-radius-md); border: 1px solid var(--acme-color-border); background: var(--acme-color-surface); font-weight: 700;">B</span>
+<div style="display: flex; flex-direction: column; line-height: 1.2;">
+<h1 style="margin: 0; font-family: var(--acme-font-sans); font-size: 24px; font-weight: 700; line-height: 1; letter-spacing: -0.02em;">BTC/USDT</h1>
+<span style="font-size: 12px; color: var(--acme-color-text-muted);">Bitcoin · Spot</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; line-height: 1.2;">
+<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--acme-color-text);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>95,128.40</span>
+<span style="font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">≈ $95,128.40</span>
+</div>
+<dl style="margin: 0; display: flex; flex-wrap: wrap; gap: 12px 32px;">
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">24h change</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--acme-color-text);">+1,718.92 (+1.84%)</dd></div>
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">24h high</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">95,610.00</dd></div>
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">24h low</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">92,874.15</dd></div>
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">24h volume (BTC)</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">1,931.07</dd></div>
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">24h volume (USDT)</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">182.4M</dd></div>
+</dl>
+</div>
+</div>
+
+<div style="padding: 12px 16px 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px;">
+
+<div style="flex: 999 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<section aria-labelledby="chart-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; padding: 8px 16px 0; border-bottom: 1px solid var(--acme-color-border);">
+<div style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; padding-bottom: 10px;">
+<h2 id="chart-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Price chart</h2>
+<span style="font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">${v.ohlc}</span>
+</div>
+<div style="margin-bottom: -1px;">
+<${DS.Tabs} tabs=${v.intervals} active=${v.interval} on-change=${v.setInterval} id-prefix="interval" label="Chart interval"><//>
+</div>
+</div>
+<div id=${v.intervalPanelId} role="tabpanel" aria-labelledby=${v.intervalTabId}>
+<div role="img" aria-label=${v.chartLabel} style="display: flex; height: 340px; padding: 16px 0 0 12px;">
+<div style="position: relative; flex: 1; min-width: 0;">
+${(v.ticks || []).map((t) => html`
+<div style="position: absolute; left: 0; right: 0; top: ${t.top}%; border-top: 1px solid var(--acme-color-surface);"></div>
+`)}
+<div style="position: absolute; inset: 0; display: flex; gap: 2px;">
+${(v.candles || []).map((c) => html`
+<div style="position: relative; flex: 1; min-width: 0;">
+<div style="position: absolute; left: 50%; width: 1px; margin-left: -0.5px; top: ${c.wickTop}%; height: ${c.wickH}%; background: ${c.stroke};"></div>
+<div style="position: absolute; left: 15%; right: 15%; top: ${c.bodyTop}%; height: ${c.bodyH}%; min-height: 1px; box-sizing: border-box; border: 1px solid ${c.stroke}; background: ${c.fill};"></div>
+</div>
+`)}
+</div>
+<div style="position: absolute; left: 0; right: 0; top: ${v.lastTop}%; border-top: 1px dashed var(--acme-color-data-highlight);"></div>
+</div>
+<div style="position: relative; width: 80px; flex: none;">
+${(v.ticks || []).map((t) => html`
+<span style="position: absolute; left: 10px; top: ${t.top}%; transform: translateY(-50%); font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">${t.label}</span>
+`)}
+<span style="position: absolute; left: 4px; right: 4px; top: ${v.lastTop}%; transform: translateY(-50%); padding: 1px 6px; border-radius: var(--acme-radius-sm); background: var(--acme-color-data-highlight); color: var(--acme-color-canvas); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center;">${v.lastLabel}</span>
+</div>
+</div>
+<div aria-hidden="true" style="display: flex; align-items: flex-end; gap: 2px; height: 52px; padding: 8px 92px 0 12px; border-top: 1px solid var(--acme-color-surface); margin-top: 8px;">
+${(v.candles || []).map((c) => html`
+<div style="flex: 1; min-width: 0; height: ${c.volH}%; background: var(--acme-color-border);"></div>
+`)}
+</div>
+<div aria-hidden="true" style="display: flex; justify-content: space-between; padding: 6px 92px 12px 12px; font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">
+${(v.timeLabels || []).map((tl) => html`<span>${tl.label}</span>`)}
+</div>
+</div>
+</section>
+
+<section aria-labelledby="orders-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; padding: 8px 16px 0; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="orders-heading" style="margin: 0; padding-bottom: 10px; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Your orders</h2>
+<div style="margin-bottom: -1px;">
+<${DS.Tabs} tabs=${v.orderTabs} active=${v.ordersTab} on-change=${v.setOrdersTab} id-prefix="orders" label="Your orders"><//>
+</div>
+</div>
+<div id=${v.ordersPanelId} role="tabpanel" aria-labelledby=${v.ordersTabId} style="overflow-x: auto;">
+<div style="min-width: 720px; padding: 0 8px 8px;">
+${v.showOpen ? html`
+<${DS.Table} caption="Open orders">
+<thead><tr><th scope="col">Time</th><th scope="col">Side</th><th scope="col">Type</th><th scope="col" class="acme-table__num">Price</th><th scope="col" class="acme-table__num">Amount (BTC)</th><th scope="col" class="acme-table__num">Filled</th><th scope="col">Status</th><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;">Actions</span></th></tr></thead>
+<tbody>
+${(v.openRows || []).map((o) => html`
+<tr>
+<td style="color: ${o.sideColor}; font-variant-numeric: tabular-nums;">${o.time}</td>
+<td style="font-weight: 600; color: ${o.sideColor};">${o.sideLabel}</td>
+<td style="color: ${o.sideColor};">${o.type}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.price}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.qty}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.filled}</td>
+<td data-side=${o.sideLabel}><${DS.Badge} variant=${o.badge}>${o.status}<//></td>
+<td class="acme-table__num" data-side=${o.sideLabel}><${DS.Button} variant="ghost" size="sm" on-click=${o.cancel} aria-label=${o.cancelLabel}>Cancel<//></td>
+</tr>
+`)}
+</tbody>
+<//>
+${v.noOpen ? html`<p style="margin: 0; padding: 24px 12px; color: var(--acme-color-text-muted);">No open orders. Limit orders you place show here until they fill.</p>` : null}
+` : null}
+${v.showHistory ? html`
+<${DS.Table} caption="Order history">
+<thead><tr><th scope="col">Time</th><th scope="col">Side</th><th scope="col">Type</th><th scope="col" class="acme-table__num">Price</th><th scope="col" class="acme-table__num">Amount (BTC)</th><th scope="col" class="acme-table__num">Filled</th><th scope="col">Status</th></tr></thead>
+<tbody>
+${(v.historyRows || []).map((o) => html`
+<tr>
+<td style="color: ${o.sideColor}; font-variant-numeric: tabular-nums;">${o.time}</td>
+<td style="font-weight: 600; color: ${o.sideColor};">${o.sideLabel}</td>
+<td style="color: ${o.sideColor};">${o.type}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.price}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.qty}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.filled}</td>
+<td data-side=${o.sideLabel}><${DS.Badge} variant=${o.badge}>${o.status}<//></td>
+</tr>
+`)}
+</tbody>
+<//>
+` : null}
+${v.showFills ? html`
+<${DS.Table} caption="Trade history">
+<thead><tr><th scope="col">Time</th><th scope="col">Side</th><th scope="col" class="acme-table__num">Price</th><th scope="col" class="acme-table__num">Amount (BTC)</th><th scope="col" class="acme-table__num">Value (USDT)</th><th scope="col" class="acme-table__num">Fee</th><th scope="col">Role</th></tr></thead>
+<tbody>
+${(v.fillRows || []).map((f) => html`
+<tr>
+<td style="color: ${f.sideColor}; font-variant-numeric: tabular-nums;">${f.time}</td>
+<td style="font-weight: 600; color: ${f.sideColor};">${f.sideLabel}</td>
+<td class="acme-table__num" style="color: ${f.sideColor};">${f.price}</td>
+<td class="acme-table__num" style="color: ${f.sideColor};">${f.qty}</td>
+<td class="acme-table__num" style="color: ${f.sideColor};">${f.value}</td>
+<td class="acme-table__num" style="color: ${f.sideColor};">${f.fee}</td>
+<td style="color: ${f.sideColor};">${f.role}</td>
+</tr>
+`)}
+</tbody>
+<//>
+` : null}
+</div>
+</div>
+</section>
+</div>
+
+<div style="flex: 1 1 290px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<section aria-labelledby="book-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow: hidden;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="book-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Order book</h2>
+<span style="font-size: 12px; color: var(--acme-color-text-muted);">Select a price to use it</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 8px 16px 4px; font-size: 12px; font-weight: 600; color: var(--acme-color-text-muted);">
+<span>Price (USDT)</span><span style="text-align: right;">Amount (BTC)</span><span style="text-align: right;">Total (BTC)</span>
+</div>
+<div style="display: flex; flex-direction: column;">
+${(v.asks || []).map((r) => html`
+<button type="button" onClick=${r.pick} aria-label=${r.label} style="position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 16px; border: none; background: none; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--acme-color-text); text-align: left; cursor: pointer;">
+<span aria-hidden="true" style="position: absolute; top: 1px; bottom: 1px; right: 0; width: ${r.depth}%; background: var(--acme-color-surface);"></span>
+<span style="position: relative; font-weight: 600; color: var(--acme-color-text);">${r.price}</span>
+<span style="position: relative; text-align: right;">${r.qty}</span>
+<span style="position: relative; text-align: right; color: var(--acme-color-text-muted);">${r.cum}</span>
+</button>
+`)}
+</div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 6px 0; padding: 8px 16px; border-top: 1px solid var(--acme-color-border); border-bottom: 1px solid var(--acme-color-border);">
+<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--acme-color-text);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>95,128.40</span>
+<span style="font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">Spread ${v.spread}</span>
+</div>
+<div style="display: flex; flex-direction: column; padding-bottom: 8px;">
+${(v.bids || []).map((r) => html`
+<button type="button" onClick=${r.pick} aria-label=${r.label} style="position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 16px; border: none; background: none; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--acme-color-text); text-align: left; cursor: pointer;">
+<span aria-hidden="true" style="position: absolute; top: 1px; bottom: 1px; right: 0; width: ${r.depth}%; background: var(--acme-color-surface);"></span>
+<span style="position: relative; font-weight: 600; color: var(--acme-color-text);">${r.price}</span>
+<span style="position: relative; text-align: right;">${r.qty}</span>
+<span style="position: relative; text-align: right; color: var(--acme-color-text-muted);">${r.cum}</span>
+</button>
+`)}
+</div>
+</section>
+
+<section aria-labelledby="trades-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow: hidden;">
+<div style="padding: 12px 16px; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="trades-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Recent trades</h2>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 8px 16px 4px; font-size: 12px; font-weight: 600; color: var(--acme-color-text-muted);">
+<span>Price (USDT)</span><span style="text-align: right;">Amount (BTC)</span><span style="text-align: right;">Time</span>
+</div>
+<div style="display: flex; flex-direction: column; padding-bottom: 8px;">
+${(v.trades || []).map((t) => html`
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 16px; font-size: 13px; font-variant-numeric: tabular-nums;">
+<span style="font-weight: 600; color: ${t.color};">${t.price}</span>
+<span style="text-align: right;">${t.amount}</span>
+<span style="text-align: right; color: var(--acme-color-text-muted);">${t.time}</span>
+</div>
+`)}
+</div>
+</section>
+</div>
+
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<section aria-labelledby="form-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text);">
+<div style="padding: 12px 16px; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="form-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Place order</h2>
+</div>
+<form data-side=${v.formSide} onSubmit=${v.onSubmit} novalidate="novalidate" style="display: flex; flex-direction: column; gap: 16px; padding: 16px;">
+<div role="group" aria-label="Side" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: var(--acme-radius-md); background: var(--acme-color-surface);">
+<button type="button" onClick=${v.pickBuy} aria-pressed=${v.buyPressed} style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border-radius: var(--acme-radius-sm); border: 1px solid ${v.buyBorder}; background: ${v.buyBg}; box-shadow: ${v.buyShadow}; font: inherit; font-weight: 600; color: ${v.buyInk}; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>Buy</button>
+<button type="button" onClick=${v.pickSell} aria-pressed=${v.sellPressed} style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border-radius: var(--acme-radius-sm); border: 1px solid ${v.sellBorder}; background: ${v.sellBg}; box-shadow: ${v.sellShadow}; font: inherit; font-weight: 600; color: ${v.sellInk}; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10"/><path d="M17 7v10H7"/></svg>Sell</button>
+</div>
+<${DS.Tabs} tabs=${v.typeTabs} active=${v.orderType} on-change=${v.setOrderType} id-prefix="otype" label="Order type"><//>
+<div id=${v.typePanelId} role="tabpanel" aria-labelledby=${v.typeTabId} style="display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: ${v.sideInk};">
+<span>Available</span><span style="font-weight: 600; color: ${v.sideInk}; font-variant-numeric: tabular-nums;">${v.availLabel}</span>
+</div>
+<${DS.Field} label="Price (USDT)" html-for="order-price" help=${v.priceHelp}><${DS.Input} id="order-price" inputmode="decimal" value=${v.priceValue} placeholder=${v.pricePlaceholder} disabled=${v.isMarket} on-change=${v.onPrice}><//><//>
+<${DS.Field} label="Amount (BTC)" html-for="order-amount" error=${v.amountError}><${DS.Input} id="order-amount" inputmode="decimal" placeholder="0.00000" value=${v.amount} on-change=${v.onAmount}><//><//>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+${(v.pcts || []).map((p) => html`
+<${DS.Button} variant="secondary" size="sm" on-click=${p.pick} aria-label=${p.aria} style="display: grid;">${p.label}<//>
+`)}
+</div>
+<dl style="margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.sideInk};">Order value</dt><dd style="margin: 0; font-variant-numeric: tabular-nums; color: ${v.sideInk};">${v.totalLabel}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.sideInk};">Est. fee (0.10%)</dt><dd style="margin: 0; font-variant-numeric: tabular-nums; color: ${v.sideInk};">${v.feeLabel}</dd></div>
+</dl>
+<${DS.Button} variant=${v.submitVariant} size="lg" type="submit" style="display: grid;">${v.submitLabel}<//>
+${v.hasPlaced ? html`
+<${DS.Alert} variant="success" title="Order placed">${v.placedText}<//>
+` : null}
+<p style="margin: 0; font-size: 12px; color: ${v.sideInk};">Maker 0.10% · Taker 0.10% · Minimum order 5 USDT</p>
+</div>
+</form>
+</section>
+
+<section aria-labelledby="bal-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text);">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="bal-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Balances</h2>
+<a class="acme-btn acme-btn--ghost acme-btn--sm" href="wallet.html">Deposit</a>
+</div>
+<dl style="margin: 0; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; justify-content: space-between; gap: 8px;">
+<dt style="font-weight: 600;">BTC</dt>
+<dd style="margin: 0; text-align: right; font-variant-numeric: tabular-nums;">${v.btcAvail}<span style="display: block; font-size: 12px; color: var(--acme-color-text-muted);">0.01500 in orders</span></dd>
+</div>
+<div style="display: flex; justify-content: space-between; gap: 8px;">
+<dt style="font-weight: 600;">USDT</dt>
+<dd style="margin: 0; text-align: right; font-variant-numeric: tabular-nums;">${v.usdtAvail}<span style="display: block; font-size: 12px; color: var(--acme-color-text-muted);">4,725.00 in orders</span></dd>
+</div>
+</dl>
+</section>
+</div>
+
+</div>
+</div>`;
+}
+
+mount(Component, template, {"candles": "directional"});
+</script>
+</body>
+</html>

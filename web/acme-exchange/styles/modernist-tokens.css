@@ -1,0 +1,74 @@
+/* Modernist design system — tokens, compiled from its tokens.json (version 1).
+   Swiss style: one grotesque (Archivo), black rules instead of shadows, square
+   corners, blue for action and "you are here", red for danger only. */
+:root {
+  color-scheme: light;
+
+  /* Colour */
+  --paper: #ffffff;
+  --paper-2: #f1f1ef;
+  --rule: #cfcfcb;
+  --ink: #111111;
+  --rule-strong: var(--ink);
+  --ink-2: #454542;
+  --ink-3: #6a6a66;
+  --blue: #1e40d8;
+  --blue-hover: #1631a8;
+  --blue-soft: #e6ebfc;
+  --on-blue: var(--paper);
+  --red: #b3170d;
+  --data-1: var(--paper);
+  --data-1-ink: var(--ink);
+  --data-2: #f6d21c;
+  --data-2-ink: var(--ink);
+  --data-3: #f08c1e;
+  --data-3-ink: var(--ink);
+  --data-4: #dc2a1e;
+  --data-4-ink: var(--paper);
+  --data-5: #8a1410;
+  --data-5-ink: var(--paper);
+  --data-6: var(--ink);
+  --data-6-ink: var(--paper);
+  --data-line: var(--ink);
+  --data-highlight: var(--blue);
+
+  /* Type */
+  --font-sans: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* Space: 8px module, 4px only inside a control */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+  --space-7: 64px;
+  --space-8: 96px;
+
+  /* Shape */
+  --radius-none: 0px;
+  --radius-hair: 2px;
+  --radius-circle: 50%;
+
+  /* Strokes: rules do the work shadows do elsewhere */
+  --stroke-hair: 1px;
+  --stroke-rule: 2px;
+  --stroke-alert: 4px;
+  --stroke-bar: 8px;
+
+  /* Layout */
+  --grid-max: 1280px;
+  --grid-columns: 12;
+  --grid-gutter: 24px;
+}
+
+.display   { font: 800 72px/0.95 var(--font-sans); letter-spacing: -0.03em; }
+.figure    { font: 700 96px/0.9 var(--font-sans); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.heading-1 { font: 700 44px/1 var(--font-sans); letter-spacing: -0.02em; }
+.heading-2 { font: 700 28px/1.1 var(--font-sans); letter-spacing: -0.01em; }
+.heading-3 { font: 700 18px/1.25 var(--font-sans); }
+.body      { font: 400 16px/1.5 var(--font-sans); }
+.small     { font: 400 14px/1.45 var(--font-sans); }
+.label     { font: 600 12px/1.2 var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; }
+.mono      { font: 400 13px/1.4 var(--font-mono); }

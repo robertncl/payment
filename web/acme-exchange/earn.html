@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earn · ACME Exchange</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="styles/modernist-tokens.css">
+<link rel="stylesheet" href="styles/acme-modernist.css">
+<style>
+body{margin:0}
+a{color:var(--blue)}a:hover{color:var(--blue-hover)}
+a.acme-btn{text-decoration:none}
+.acme-table tbody tr[aria-selected="true"] td:first-child strong{color:var(--blue)}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="ds/components/bundle.js"></script>
+<script src="js/runtime.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// Screen logic and markup ported from the ACME Exchange design canvas (Earn.dc.html).
+var NAV = [
+  { label: 'Markets', href: 'index.html' },
+  { label: 'Spot', href: 'trade.html' },
+  { label: 'Futures', href: 'futures.html' },
+  { label: 'Earn', href: 'earn.html' },
+  { label: 'Wallet', href: 'wallet.html' }
+];
+var NAMES = { USDT: 'Tether', BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana', BNB: 'BNB' };
+var PRICE = { USDT: 1, BTC: 95128.40, ETH: 3512.86, SOL: 181.245, BNB: 601.37 };
+var DP = { USDT: 2, BTC: 6, ETH: 5, SOL: 4, BNB: 4 };
+var AVAIL = { USDT: 7412.38, BTC: 0.08214, ETH: 1.25, SOL: 12.4, BNB: 0 };
+var PRODUCTS = [
+  { id: 'USDT-FLEX', asset: 'USDT', days: 0, apr: 0.08, min: 10 },
+  { id: 'USDT-30D', asset: 'USDT', days: 30, apr: 0.12, min: 100 },
+  { id: 'USDT-90D', asset: 'USDT', days: 90, apr: 0.165, min: 100 },
+  { id: 'BTC-FLEX', asset: 'BTC', days: 0, apr: 0.025, min: 0.001 },
+  { id: 'BTC-90D', asset: 'BTC', days: 90, apr: 0.045, min: 0.01 },
+  { id: 'ETH-FLEX', asset: 'ETH', days: 0, apr: 0.035, min: 0.01 },
+  { id: 'ETH-60D', asset: 'ETH', days: 60, apr: 0.06, min: 0.05 },
+  { id: 'SOL-FLEX', asset: 'SOL', days: 0, apr: 0.06, min: 0.1 },
+  { id: 'BNB-FLEX', asset: 'BNB', days: 0, apr: 0.05, min: 0.05 }
+];
+var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+var TODAY = Date.UTC(2026, 9, 17);
+var DAY = 86400000;
+var SUBS = [
+  { id: 's1', product: 'USDT-30D', principal: 2500, start: Date.UTC(2026, 9, 8) },
+  { id: 's2', product: 'ETH-FLEX', principal: 0.35, start: Date.UTC(2026, 8, 7) }
+];
+var REDEEMED = [{ product: 'BTC · Flexible', principal: '0.010000 BTC', earned: '+0.000021 BTC', date: 'Sep 29, 2026' }];
+
+function fmt(n, dp) { return n.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp }); }
+function num(s) { var n = parseFloat(String(s).replace(/,/g, '')); return isFinite(n) ? n : 0; }
+function date(ms) { var d = new Date(ms); return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear(); }
+function prod(id) { return PRODUCTS.filter(function (p) { return p.id === id; })[0]; }
+function term(p) { return p.days === 0 ? 'Flexible' : p.days + ' days'; }
+function amt(a, n) { return fmt(n, DP[a]) + ' ' + a; }
+function usd(n) { return '$' + fmt(n, 2); }
+
+class Component extends DCLogic {
+  state = { assetFilter: 'all', selected: 'USDT-90D', amount: '1,000', amountError: '', subs: SUBS, redeemed: REDEEMED, notice: null, seq: 0 };
+
+  subscribe() {
+    var s = this.state, p = prod(s.selected), a = num(s.amount);
+    if (a <= 0) { this.setState({ amountError: 'Enter an amount in ' + p.asset + '.' }); return; }
+    if (a < p.min) { this.setState({ amountError: 'The minimum for this product is ' + fmt(p.min, DP[p.asset]).replace(/\.?0+$/, '') + ' ' + p.asset + '.' }); return; }
+    if (a > AVAIL[p.asset]) { this.setState({ amountError: 'You have ' + amt(p.asset, AVAIL[p.asset]) + ' available. Lower the amount or deposit more ' + p.asset + '.' }); return; }
+    var seq = s.seq + 1;
+    this.setState({
+      seq: seq, amount: '', amountError: '',
+      subs: [{ id: 'n' + seq, product: p.id, principal: a, start: TODAY }].concat(s.subs),
+      notice: { title: 'Subscribed', text: amt(p.asset, a) + ' is earning ' + (p.apr * 100).toFixed(2) + '% APR' + (p.days ? ' until ' + date(TODAY + p.days * DAY) + '.' : '. Redeem anytime.') }
+    });
+  }
+
+  redeem(sub) {
+    var s = this.state, p = prod(sub.product), days = (TODAY - sub.start) / DAY, earned = sub.principal * p.apr * days / 365;
+    this.setState({
+      subs: s.subs.filter(function (x) { return x.id !== sub.id; }),
+      redeemed: [{ product: p.asset + ' · ' + term(p), principal: amt(p.asset, sub.principal), earned: '+' + amt(p.asset, earned), date: date(TODAY) }].concat(s.redeemed),
+      notice: { title: 'Redeemed', text: amt(p.asset, sub.principal) + ' plus ' + amt(p.asset, earned) + ' of interest is back in your spendable balance.' }
+    });
+  }
+
+  renderVals() {
+    var self = this, s = this.state;
+    var subscribedUsd = 0, earnedUsd = 0;
+    var subRows = s.subs.map(function (sub) {
+      var p = prod(sub.product), days = (TODAY - sub.start) / DAY, earned = sub.principal * p.apr * days / 365;
+      var maturity = sub.start + p.days * DAY, locked = p.days > 0 && TODAY < maturity;
+      subscribedUsd += sub.principal * PRICE[p.asset]; earnedUsd += earned * PRICE[p.asset];
+      return { initial: p.asset.charAt(0), asset: p.asset, term: term(p), since: date(sub.start),
+        principal: amt(p.asset, sub.principal), apr: (p.apr * 100).toFixed(2) + '%', earned: '+' + fmt(earned, DP[p.asset] + 2) + ' ' + p.asset,
+        status: locked ? 'Matures ' + date(maturity).replace(/, \d+$/, '') : 'Earning', badge: locked ? 'neutral' : 'success',
+        locked: locked, redeemText: locked ? 'Locked' : 'Redeem',
+        redeemLabel: locked ? p.asset + ' ' + term(p) + ' is locked until ' + date(maturity) : 'Redeem ' + amt(p.asset, sub.principal),
+        redeem: function () { self.redeem(sub); } };
+    });
+
+    var assets = ['all', 'USDT', 'BTC', 'ETH', 'SOL', 'BNB'];
+    var productRows = PRODUCTS.filter(function (p) { return s.assetFilter === 'all' || p.asset === s.assetFilter; }).map(function (p) {
+      var on = p.id === s.selected;
+      return { initial: p.asset.charAt(0), asset: p.asset, name: NAMES[p.asset], term: term(p), apr: (p.apr * 100).toFixed(2) + '%',
+        min: fmt(p.min, DP[p.asset]).replace(/\.?0+$/, '') + ' ' + p.asset, selected: on ? 'true' : 'false',
+        btnVariant: on ? 'ghost' : 'secondary', pickText: on ? 'Selected' : 'Choose',
+        pickLabel: (on ? 'Selected: ' : 'Choose ') + p.asset + ' ' + term(p) + ' at ' + (p.apr * 100).toFixed(2) + '% APR',
+        pick: function () { self.setState({ selected: p.id, amountError: '', amount: '' }); } };
+    });
+
+    var sel = prod(s.selected), a = num(s.amount), dp = DP[sel.asset];
+    var estDays = sel.days || 1, est = a * sel.apr * estDays / 365;
+    return {
+      navLinks: NAV,
+      subscribedUsd: usd(subscribedUsd), earnedUsd: '+' + usd(earnedUsd),
+      subsCountLabel: subRows.length + (subRows.length === 1 ? ' active' : ' active'),
+      subRows: subRows, noSubs: subRows.length === 0,
+      hasNotice: !!s.notice, noticeTitle: s.notice ? s.notice.title : '', noticeText: s.notice ? s.notice.text : '',
+
+      assetTabs: assets.map(function (x) { return { id: x, label: x === 'all' ? 'All' : x }; }),
+      assetFilter: s.assetFilter,
+      setAssetFilter: function (id) { self.setState({ assetFilter: id }); },
+      assetPanelId: 'asset-panel-' + s.assetFilter, assetTabId: 'asset-tab-' + s.assetFilter,
+      productRows: productRows,
+
+      selTitle: sel.asset + ' · ' + term(sel), selKind: sel.days ? 'Fixed term' : 'Flexible', selApr: (sel.apr * 100).toFixed(2) + '%',
+      amountLabel: 'Amount (' + sel.asset + ')', amount: s.amount, amountError: s.amountError,
+      amountHelp: '≈ ' + usd(a * PRICE[sel.asset]),
+      onAmount: function (e) { self.setState({ amount: e.target.value, amountError: '' }); },
+      availLabel: amt(sel.asset, AVAIL[sel.asset]),
+      useMax: function () { self.setState({ amount: fmt(AVAIL[sel.asset], dp), amountError: '' }); },
+      selMin: fmt(sel.min, dp).replace(/\.?0+$/, '') + ' ' + sel.asset,
+      lockLabel: sel.days ? 'Matures' : 'Redeem',
+      lockValue: sel.days ? date(TODAY + sel.days * DAY) : 'Anytime',
+      estLabel: sel.days ? 'Interest at maturity' : 'Interest per day',
+      estValue: a > 0 ? '+' + fmt(est, dp) + ' ' + sel.asset : '—',
+      subscribeCta: 'Subscribe ' + (a > 0 ? fmt(a, dp).replace(/\.?0+$/, '') + ' ' + sel.asset : sel.asset),
+      onSubscribe: function (e) { e.preventDefault(); self.subscribe(); },
+      termNote: sel.days ? 'Locked for ' + sel.days + ' days. Fixed terms can’t be redeemed early.' : 'Redeem anytime. Interest stops the moment you redeem.',
+      redeemedRows: s.redeemed
+    };
+  }
+}
+
+function template(v) {
+return html`<div style="min-height: 100vh; background: var(--acme-color-canvas); color: var(--acme-color-text); font-family: var(--acme-font-sans); font-size: 14px; line-height: 1.5;">
+<${DS.Topbar} links=${v.navLinks} current="Earn">
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+<${DS.Badge} variant="warning">Unverified<//>
+<span style="color: var(--acme-color-text-muted);">trader@example.com</span>
+<a class="acme-btn acme-btn--ghost acme-btn--sm" href="sign-in.html">Sign out</a>
+</div>
+<//>
+
+<main style="max-width: 1200px; margin: 0 auto; padding: 48px 24px 64px; display: flex; flex-direction: column; gap: 48px;">
+<div style="display: flex; flex-wrap: wrap; gap: 24px 48px; align-items: flex-end; justify-content: space-between;">
+<div style="flex: 1 1 480px; min-width: 0;">
+<p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acme-color-text-muted);">Earn</p>
+<h1 style="margin: 0 0 12px; font-family: var(--acme-font-sans); font-size: 44px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; text-wrap: balance;">Put idle crypto to work</h1>
+<p style="margin: 0; max-width: 60ch; font-size: 16px; color: var(--acme-color-text-muted);">Subscribe an asset and interest pays continuously to your spendable balance. Flexible products redeem anytime. Fixed terms lock until maturity for a higher rate.</p>
+</div>
+<dl style="flex: 0 1 420px; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text);">
+<div style="padding: 20px; border-right: 1px solid var(--acme-color-border);">
+<dt style="font-size: 12px; color: var(--acme-color-text-muted);">Subscribed</dt>
+<dd style="margin: 4px 0 0; font-family: var(--acme-font-sans); font-size: 30px; font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">${v.subscribedUsd}</dd>
+</div>
+<div style="padding: 20px;">
+<dt style="font-size: 12px; color: var(--acme-color-text-muted);">Interest earned</dt>
+<dd style="margin: 4px 0 0; font-family: var(--acme-font-sans); font-size: 30px; font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">${v.earnedUsd}</dd>
+</div>
+</dl>
+</div>
+
+<section aria-labelledby="subs-heading" style="display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+<h2 id="subs-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em;">Your subscriptions</h2>
+<span style="color: var(--acme-color-text-muted);">${v.subsCountLabel}</span>
+</div>
+${v.hasNotice ? html`
+<${DS.Alert} variant="success" title=${v.noticeTitle}>${v.noticeText}<//>
+` : null}
+<div style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow-x: auto;">
+<div style="min-width: 820px; padding: 4px 8px;">
+<${DS.Table} caption="Your active subscriptions">
+<thead><tr><th scope="col">Product</th><th scope="col" class="acme-table__num">Principal</th><th scope="col" class="acme-table__num">APR</th><th scope="col" class="acme-table__num">Interest earned</th><th scope="col">Status</th><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;">Actions</span></th></tr></thead>
+<tbody>
+${(v.subRows || []).map((r) => html`
+<tr>
+<td>
+<div style="display: flex; align-items: center; gap: 12px;">
+<span aria-hidden="true" style="display: inline-grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: var(--acme-radius-md); border: 1px solid var(--acme-color-border); background: var(--acme-color-surface); font-weight: 700; font-size: 13px;">${r.initial}</span>
+<span style="display: flex; flex-direction: column; line-height: 1.3;"><strong style="font-weight: 600;">${r.asset} · ${r.term}</strong><span style="font-size: 12px; color: var(--acme-color-text-muted);">Since ${r.since}</span></span>
+</div>
+</td>
+<td class="acme-table__num">${r.principal}</td>
+<td class="acme-table__num">${r.apr}</td>
+<td class="acme-table__num" style="color: var(--acme-color-text);">${r.earned}</td>
+<td><${DS.Badge} variant=${r.badge}>${r.status}<//></td>
+<td class="acme-table__num"><${DS.Button} variant="secondary" size="sm" disabled=${r.locked} on-click=${r.redeem} aria-label=${r.redeemLabel}>${r.redeemText}<//></td>
+</tr>
+`)}
+</tbody>
+<//>
+${v.noSubs ? html`<p style="margin: 0; padding: 24px 12px; color: var(--acme-color-text-muted);">Nothing subscribed yet. Pick a product below to start earning.</p>` : null}
+</div>
+</div>
+</section>
+
+<section aria-labelledby="products-heading" style="display: flex; flex-direction: column; gap: 16px;">
+<h2 id="products-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em;">Products</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<div style="flex: 999 1 560px; min-width: 0; background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow: hidden;">
+<div style="padding: 8px 16px 0;">
+<${DS.Tabs} tabs=${v.assetTabs} active=${v.assetFilter} on-change=${v.setAssetFilter} id-prefix="asset" label="Filter by asset"><//>
+</div>
+<div id=${v.assetPanelId} role="tabpanel" aria-labelledby=${v.assetTabId} style="overflow-x: auto;">
+<div style="min-width: 560px; padding: 0 8px 4px;">
+<${DS.Table} caption="Earn products">
+<thead><tr><th scope="col">Asset</th><th scope="col">Term</th><th scope="col" class="acme-table__num">APR</th><th scope="col" class="acme-table__num">Minimum</th><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;">Select</span></th></tr></thead>
+<tbody>
+${(v.productRows || []).map((p) => html`
+<tr aria-selected=${p.selected}>
+<td>
+<div style="display: flex; align-items: center; gap: 12px;">
+<span aria-hidden="true" style="display: inline-grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: var(--acme-radius-md); border: 1px solid var(--acme-color-border); background: var(--acme-color-surface); font-weight: 700; font-size: 13px;">${p.initial}</span>
+<span style="display: flex; flex-direction: column; line-height: 1.3;"><strong style="font-weight: 600;">${p.asset}</strong><span style="font-size: 12px; color: var(--acme-color-text-muted);">${p.name}</span></span>
+</div>
+</td>
+<td>${p.term}</td>
+<td class="acme-table__num" style="font-size: 16px; font-weight: 600;">${p.apr}</td>
+<td class="acme-table__num" style="color: var(--acme-color-text-muted);">${p.min}</td>
+<td class="acme-table__num"><${DS.Button} variant=${p.btnVariant} size="sm" aria-pressed=${p.selected} on-click=${p.pick} aria-label=${p.pickLabel}>${p.pickText}<//></td>
+</tr>
+`)}
+</tbody>
+<//>
+</div>
+</div>
+</div>
+
+<aside aria-labelledby="sub-heading" style="flex: 1 1 340px; min-width: 0; background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text);">
+<div style="padding: 20px; border-bottom: 1px solid var(--acme-color-border); display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+<h3 id="sub-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 20px; font-weight: 700; line-height: 1.2; letter-spacing: -0.011em;">${v.selTitle}</h3>
+<${DS.Badge}>${v.selKind}<//>
+</div>
+<p style="margin: 0; display: flex; align-items: baseline; gap: 8px;"><span style="font-family: var(--acme-font-sans); font-size: 36px; font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">${v.selApr}</span><span style="color: var(--acme-color-text-muted);">APR</span></p>
+</div>
+<form onSubmit=${v.onSubscribe} novalidate="novalidate" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+<${DS.Field} label=${v.amountLabel} html-for="earn-amount" error=${v.amountError} help=${v.amountHelp}><${DS.Input} id="earn-amount" inputmode="decimal" placeholder="0.00" value=${v.amount} on-change=${v.onAmount}><//><//>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px;">
+<span style="color: var(--acme-color-text-muted);">Available <strong style="color: var(--acme-color-text); font-weight: 600; font-variant-numeric: tabular-nums;">${v.availLabel}</strong></span>
+<${DS.Button} variant="ghost" size="sm" on-click=${v.useMax}>Use max<//>
+</div>
+<dl style="margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; padding: 12px 0; border-top: 1px solid var(--acme-color-border); border-bottom: 1px solid var(--acme-color-border);">
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: var(--acme-color-text-muted);">Minimum</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">${v.selMin}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: var(--acme-color-text-muted);">${v.lockLabel}</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">${v.lockValue}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: var(--acme-color-text-muted);">${v.estLabel}</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">${v.estValue}</dd></div>
+</dl>
+<${DS.Button} variant="primary" size="lg" type="submit" style="display: grid;">${v.subscribeCta}<//>
+<p style="margin: 0; font-size: 12px; color: var(--acme-color-text-muted);">${v.termNote}</p>
+</form>
+</aside>
+</div>
+</section>
+
+<section aria-labelledby="redeemed-heading" style="display: flex; flex-direction: column; gap: 16px;">
+<h2 id="redeemed-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em;">Redeemed</h2>
+<div style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow-x: auto;">
+<div style="min-width: 640px; padding: 4px 8px;">
+<${DS.Table} caption="Redeemed subscriptions">
+<thead><tr><th scope="col">Product</th><th scope="col" class="acme-table__num">Principal</th><th scope="col" class="acme-table__num">Interest earned</th><th scope="col">Redeemed</th></tr></thead>
+<tbody>
+${(v.redeemedRows || []).map((r) => html`
+<tr>
+<td style="font-weight: 600;">${r.product}</td>
+<td class="acme-table__num">${r.principal}</td>
+<td class="acme-table__num" style="color: var(--acme-color-text);">${r.earned}</td>
+<td style="color: var(--acme-color-text-muted);">${r.date}</td>
+</tr>
+`)}
+</tbody>
+<//>
+</div>
+</div>
+</section>
+</main>
+</div>`;
+}
+
+mount(Component, template, {});
+</script>
+</body>
+</html>

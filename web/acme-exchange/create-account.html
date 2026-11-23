@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create account · ACME Exchange</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="styles/modernist-tokens.css">
+<link rel="stylesheet" href="styles/acme-modernist.css">
+<style>
+body{margin:0}
+a{color:var(--blue)}a:hover{color:var(--blue-hover)}
+a.acme-btn{text-decoration:none}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="ds/components/bundle.js"></script>
+<script src="js/runtime.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// Screen logic and markup ported from the ACME Exchange design canvas (CreateAccount.dc.html).
+class Component extends DCLogic {
+  state = { email: '', password: '', emailError: '', passwordError: '', success: false };
+  renderVals() {
+    var self = this, s = this.state;
+    return {
+      yes: true,
+      email: s.email, password: s.password, emailError: s.emailError, passwordError: s.passwordError,
+      onEmail: function (e) { self.setState({ email: e.target.value, emailError: '' }); },
+      onPassword: function (e) { self.setState({ password: e.target.value, passwordError: '' }); },
+      hasSuccess: s.success,
+      onSubmit: function (e) {
+        e.preventDefault();
+        var emailError = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email.trim()) ? '' : 'Enter an email address, like you@example.com.';
+        var passwordError = s.password.length >= 6 ? '' : 'Use at least 6 characters.';
+        self.setState({ emailError: emailError, passwordError: passwordError, success: !emailError && !passwordError });
+      }
+    };
+  }
+}
+
+function template(v) {
+return html`<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--acme-color-canvas); color: var(--acme-color-text); font-family: var(--acme-font-sans); font-size: 14px; line-height: 1.5;">
+<aside style="flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 48px; padding: 40px 56px; background: var(--acme-gray-900); color: var(--acme-gray-50);">
+<${DS.Wordmark} on-dark=${v.yes} href="index.html" style="font-size: 18px;"><//>
+<div style="display: flex; flex-direction: column; gap: 24px; max-width: 520px;">
+<p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acme-blue-300);">ACME Exchange</p>
+<p style="margin: 0; font-family: var(--acme-font-sans); font-size: 72px; font-weight: 800; line-height: 0.95; letter-spacing: -0.03em; text-wrap: balance;">10,000 USDT to start. Nothing real at risk.</p>
+<p style="margin: 0; font-size: 16px; color: var(--acme-gray-200); max-width: 46ch;">Every new account gets demo funds the moment it opens. Trade, go long or short, or park it in Earn.</p>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 16px; color: var(--acme-gray-100);">
+<li style="display: flex; gap: 16px; align-items: baseline;"><span aria-hidden="true" style="font-family: var(--acme-font-sans); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--acme-blue-300);">1</span><span>Create your account with an email and password.</span></li>
+<li style="display: flex; gap: 16px; align-items: baseline;"><span aria-hidden="true" style="font-family: var(--acme-font-sans); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--acme-blue-300);">2</span><span>Trade straight away with 10,000 USDT.</span></li>
+<li style="display: flex; gap: 16px; align-items: baseline;"><span aria-hidden="true" style="font-family: var(--acme-font-sans); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--acme-blue-300);">3</span><span>Verify your identity when you want to withdraw.</span></li>
+</ol>
+</div>
+<p style="margin: 0; font-size: 12px; color: var(--acme-gray-300);">A demo exchange. Prices come from a market-maker bot.</p>
+</aside>
+
+<main style="flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; padding: 24px 32px 48px;">
+<div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 0;">
+<form onSubmit=${v.onSubmit} novalidate="novalidate" style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px;">
+<div>
+<h1 style="margin: 0 0 8px; font-family: var(--acme-font-sans); font-size: 44px; font-weight: 700; line-height: 1; letter-spacing: -0.02em;">Create your account</h1>
+<p style="margin: 0; color: var(--acme-color-text-muted);">Takes a minute. Demo funds land as soon as you’re in.</p>
+</div>
+${v.hasSuccess ? html`
+<${DS.Alert} variant="success" title="Account created"><p style="margin: 0;">10,000 USDT is in your wallet. <a href="trade.html">Start trading</a></p><//>
+` : null}
+<${DS.Field} label="Email" html-for="signup-email" error=${v.emailError}><${DS.Input} id="signup-email" type="email" autocomplete="email" placeholder="you@example.com" value=${v.email} on-change=${v.onEmail}><//><//>
+<${DS.Field} label="Password" html-for="signup-password" help="At least 6 characters." error=${v.passwordError}><${DS.Input} id="signup-password" type="password" autocomplete="new-password" value=${v.password} on-change=${v.onPassword}><//><//>
+<${DS.Button} variant="primary" size="lg" type="submit" style="display: grid;">Create account<//>
+<p style="margin: 0; color: var(--acme-color-text-muted);">Already have an account? <a href="sign-in.html">Sign in</a></p>
+</form>
+</div>
+</main>
+</div>`;
+}
+
+mount(Component, template, {});
+</script>
+</body>
+</html>
