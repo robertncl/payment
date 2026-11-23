@@ -16,8 +16,8 @@
   "dependencies": {
     "@fontsource/inter": "5.3.0",
     "@fontsource/jetbrains-mono": "5.3.0",
-    "@umijs/max": "4.7.36",
-    "antd": "6.7.1",
+    "@umijs/max": "4.7.37",
+    "antd": "6.7.2",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
