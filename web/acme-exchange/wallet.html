@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallet · ACME Exchange</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="styles/modernist-tokens.css">
+<link rel="stylesheet" href="styles/acme-modernist.css">
+<style>
+body{margin:0}
+a{color:var(--blue)}a:hover{color:var(--blue-hover)}
+a.acme-btn{text-decoration:none}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="ds/components/bundle.js"></script>
+<script src="js/runtime.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// Screen logic and markup ported from the ACME Exchange design canvas (Wallet.dc.html).
+var NAV = [
+  { label: 'Markets', href: 'index.html' },
+  { label: 'Spot', href: 'trade.html' },
+  { label: 'Futures', href: 'futures.html' },
+  { label: 'Earn', href: 'earn.html' },
+  { label: 'Wallet', href: 'wallet.html' }
+];
+var ASSETS = [
+  { symbol: 'USDT', name: 'Tether', network: 'TRC20', confirms: 1, fee: 1, min: 10, dp: 2, price: 1, avail: 7412.38, locked: 6149.55, address: 'TQx7vACME2mX9pL4kR8sN3wB6cJ1hF5dGz' },
+  { symbol: 'BTC', name: 'Bitcoin', network: 'Bitcoin', confirms: 2, fee: 0.0002, min: 0.0005, dp: 5, price: 95128.40, avail: 0.08214, locked: 0.015, address: 'bc1qacme7x0d9k3m4n5p6q7r8s9t0u2v3w4x5y6z7' },
+  { symbol: 'ETH', name: 'Ethereum', network: 'ERC20', confirms: 2, fee: 0.003, min: 0.01, dp: 5, price: 3512.86, avail: 1.25, locked: 0, address: '0xACME5e2b9c4d1f7a8b3c6d0e9f2a1b4c7d8e5f60' },
+  { symbol: 'SOL', name: 'Solana', network: 'Solana', confirms: 1, fee: 0.01, min: 0.05, dp: 4, price: 181.245, avail: 12.4, locked: 0, address: 'ACME9xKq4Lm2Np7Rs3Tv8Wy5Zb1Cd6Fg0HjQe' },
+  { symbol: 'BNB', name: 'BNB', network: 'BEP20', confirms: 1, fee: 0.001, min: 0.01, dp: 4, price: 601.37, avail: 0, locked: 0, address: '0xACMEb81f0c2d7e4a9b6c3d1e8f5a2b7c4d0e9f13' }
+];
+var TXNS = [
+  { time: 'Oct 17, 13:58', type: 'Deposit', asset: 'USDT', amount: 5000, dp: 2, status: 'Completed', txid: '9f2c…41ab' },
+  { time: 'Oct 16, 18:20', type: 'Withdrawal', asset: 'ETH', amount: -0.25, dp: 5, status: 'Completed', txid: '0x7b3e…e1d0' },
+  { time: 'Oct 16, 09:04', type: 'Deposit', asset: 'BTC', amount: 0.1, dp: 5, status: 'Completed', txid: 'a41d…07fe' },
+  { time: 'Oct 12, 15:37', type: 'Deposit', asset: 'ETH', amount: 1.5, dp: 5, status: 'Completed', txid: '0xc90a…3b72' },
+  { time: 'Oct 10, 11:12', type: 'Deposit', asset: 'SOL', amount: 12.4, dp: 4, status: 'Completed', txid: '5Kd2…pQ8w' }
+];
+var BADGE = { Completed: 'success', Confirming: 'info', Broadcasting: 'info', Failed: 'danger' };
+
+function fmt(n, dp) { return n.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp }); }
+function trim(n, dp) { return fmt(n, dp).replace(/\.?0+$/, ''); }
+function num(s) { var n = parseFloat(String(s).replace(/,/g, '')); return isFinite(n) ? n : 0; }
+function find(sym) { return ASSETS.filter(function (a) { return a.symbol === sym; })[0]; }
+
+class Component extends DCLogic {
+  state = { verified: null, justVerified: false, moveTab: 'deposit', asset: 'BTC', copied: false, simAmount: '', simError: '', simNote: '', wdAddress: '', wdAmount: '', addrError: '', wdError: '', wdNote: '', confirmOpen: false, txns: TXNS, seq: 0 };
+
+  validateWithdraw() {
+    var s = this.state, a = find(s.asset), amt = num(s.wdAmount), addrError = '', wdError = '';
+    if (s.wdAddress.trim().length < 20) addrError = 'Paste the full ' + a.network + ' address you’re sending to.';
+    if (amt <= 0) wdError = 'Enter an amount in ' + a.symbol + '.';
+    else if (amt < a.min) wdError = 'The minimum withdrawal is ' + trim(a.min, a.dp) + ' ' + a.symbol + '.';
+    else if (amt > a.avail) wdError = 'You have ' + fmt(a.avail, a.dp) + ' ' + a.symbol + ' available. Lower the amount.';
+    this.setState({ addrError: addrError, wdError: wdError, confirmOpen: !addrError && !wdError, wdNote: '' });
+  }
+
+  renderVals() {
+    var self = this, s = this.state;
+    var verified = s.verified !== null ? s.verified : !!this.props.verified;
+    var a = find(s.asset);
+    var total = ASSETS.reduce(function (sum, x) { return sum + (x.avail + x.locked) * x.price; }, 0);
+    var balRows = ASSETS.map(function (x) {
+      var value = (x.avail + x.locked) * x.price, share = total > 0 ? value / total * 100 : 0;
+      return { initial: x.symbol.charAt(0), symbol: x.symbol, name: x.name, avail: fmt(x.avail, x.dp), locked: fmt(x.locked, x.dp),
+        value: '$' + fmt(value, 2), share: share.toFixed(1), shareLabel: share.toFixed(1) + '%',
+        depositLabel: 'Deposit ' + x.symbol, withdrawLabel: 'Withdraw ' + x.symbol,
+        deposit: function () { self.setState({ moveTab: 'deposit', asset: x.symbol, copied: false, simError: '', simNote: '' }); },
+        withdraw: function () { self.setState({ moveTab: 'withdraw', asset: x.symbol, addrError: '', wdError: '', wdNote: '' }); } };
+    });
+    var wdAmt = num(s.wdAmount), receive = Math.max(0, wdAmt - a.fee);
+    var txRows = s.txns.map(function (t) {
+      return { time: t.time, type: t.type, asset: t.asset, amount: (t.amount >= 0 ? '+' : '−') + fmt(Math.abs(t.amount), t.dp),
+        color: 'var(--acme-color-text)', status: t.status, badge: BADGE[t.status.split(' ')[0]] || 'neutral', txid: t.txid };
+    });
+
+    return {
+      navLinks: NAV, no: false,
+      kycVariant: verified ? 'success' : 'warning', kycLabel: verified ? 'Verified' : 'Unverified',
+      unverified: !verified, justVerified: verified && s.justVerified,
+      verify: function () { self.setState({ verified: true, justVerified: true }); },
+      portfolioUsd: '$' + fmt(total, 2),
+      portfolioBtc: '≈ ' + fmt(total / 95128.40, 5) + ' BTC',
+      balRows: balRows,
+
+      moveTabs: [{ id: 'deposit', label: 'Deposit' }, { id: 'withdraw', label: 'Withdraw' }],
+      moveTab: s.moveTab,
+      setMoveTab: function (id) { self.setState({ moveTab: id }); },
+      movePanelId: 'move-panel-' + s.moveTab, moveTabId: 'move-tab-' + s.moveTab,
+      isDeposit: s.moveTab === 'deposit', isWithdraw: s.moveTab === 'withdraw',
+      asset: s.asset,
+      assetOptions: ASSETS.map(function (x) { return { value: x.symbol, label: x.symbol + ' · ' + x.name }; }),
+      onAsset: function (e) { self.setState({ asset: e.target.value, copied: false, simError: '', simNote: '', addrError: '', wdError: '', wdNote: '' }); },
+      network: a.network, confirms: a.confirms, address: a.address,
+      copyText: s.copied ? 'Copied' : 'Copy',
+      copy: function () { try { navigator.clipboard.writeText(a.address); } catch (e) {} self.setState({ copied: true }); },
+
+      simLabel: 'Amount (' + a.symbol + ')', simAmount: s.simAmount, simError: s.simError,
+      onSim: function (e) { self.setState({ simAmount: e.target.value, simError: '' }); },
+      simulate: function () {
+        var amt = num(self.state.simAmount);
+        if (amt <= 0) { self.setState({ simError: 'Enter an amount to simulate.' }); return; }
+        var seq = self.state.seq + 1;
+        self.setState({ seq: seq, simAmount: '', simNote: fmt(amt, a.dp) + ' ' + a.symbol + ' is confirming on-chain. It credits after ' + a.confirms + (a.confirms === 1 ? ' confirmation.' : ' confirmations.'),
+          txns: [{ time: 'Oct 17, 14:32', type: 'Deposit', asset: a.symbol, amount: amt, dp: a.dp, status: 'Confirming 0/' + a.confirms, txid: 'sim' + seq + '…pending' }].concat(self.state.txns) });
+      },
+      hasSimNote: !!s.simNote, simNote: s.simNote,
+
+      addrPlaceholder: a.network + ' address', addrHelp: 'Withdrawals go out on the ' + a.network + ' network.',
+      wdAddress: s.wdAddress, addrError: s.addrError,
+      onAddress: function (e) { self.setState({ wdAddress: e.target.value, addrError: '' }); },
+      wdLabel: 'Amount (' + a.symbol + ')', wdAmount: s.wdAmount, wdError: s.wdError,
+      onWdAmount: function (e) { self.setState({ wdAmount: e.target.value, wdError: '' }); },
+      availLabel: fmt(a.avail, a.dp) + ' ' + a.symbol,
+      feeLabel: trim(a.fee, a.dp) + ' ' + a.symbol,
+      minLabel: trim(a.min, a.dp) + ' ' + a.symbol,
+      receiveLabel: wdAmt > 0 ? fmt(receive, a.dp) + ' ' + a.symbol : '—',
+      withdrawCta: 'Withdraw ' + (wdAmt > 0 ? trim(wdAmt, a.dp) + ' ' : '') + a.symbol,
+      onWithdraw: function (e) { e.preventDefault(); self.validateWithdraw(); },
+      hasWdNote: !!s.wdNote, wdNote: s.wdNote,
+
+      confirmOpen: s.confirmOpen,
+      confirmTitle: 'Send ' + fmt(receive, a.dp) + ' ' + a.symbol + '?',
+      confirmCta: 'Send ' + fmt(receive, a.dp) + ' ' + a.symbol,
+      editDetails: function () { self.setState({ confirmOpen: false }); },
+      confirmWithdraw: function () {
+        var seq = self.state.seq + 1;
+        self.setState({ seq: seq, confirmOpen: false, wdAmount: '', wdAddress: '',
+          wdNote: fmt(receive, a.dp) + ' ' + a.symbol + ' is broadcasting to the ' + a.network + ' network. Track it in Transaction history.',
+          txns: [{ time: 'Oct 17, 14:33', type: 'Withdrawal', asset: a.symbol, amount: -wdAmt, dp: a.dp, status: 'Broadcasting', txid: 'wd' + seq + '…pending' }].concat(self.state.txns) });
+      },
+
+      txRows: txRows
+    };
+  }
+}
+
+function template(v) {
+return html`<div style="min-height: 100vh; background: var(--acme-color-canvas); color: var(--acme-color-text); font-family: var(--acme-font-sans); font-size: 14px; line-height: 1.5;">
+<${DS.Topbar} links=${v.navLinks} current="Wallet">
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+<${DS.Badge} variant=${v.kycVariant}>${v.kycLabel}<//>
+<span style="color: var(--acme-color-text-muted);">trader@example.com</span>
+<a class="acme-btn acme-btn--ghost acme-btn--sm" href="sign-in.html">Sign out</a>
+</div>
+<//>
+
+<main style="max-width: 1200px; margin: 0 auto; padding: 48px 24px 64px; display: flex; flex-direction: column; gap: 32px;">
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between;">
+<div>
+<p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acme-color-text-muted);">Wallet</p>
+<h1 style="margin: 0; font-size: 14px; font-weight: 700; font-family: var(--acme-font-sans); color: var(--acme-color-text-muted);">Estimated portfolio value</h1>
+<p style="margin: 4px 0 0; font-family: var(--acme-font-sans); font-size: 72px; font-weight: 800; line-height: 0.95; letter-spacing: -0.03em; text-wrap: balance; font-variant-numeric: tabular-nums;">${v.portfolioUsd}</p>
+<p style="margin: 4px 0 0; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">${v.portfolioBtc}</p>
+</div>
+</div>
+
+${v.unverified ? html`
+<${DS.Alert} variant="warning" title="Verify your identity to withdraw">
+<p style="margin: 0 0 12px;">Deposits, trading and Earn work without it. In this demo, verification is instant.</p>
+<${DS.Button} variant="primary" on-click=${v.verify}>Verify identity<//>
+<//>
+` : null}
+${v.justVerified ? html`
+<${DS.Alert} variant="success" title="Identity verified">Withdrawals are on.<//>
+` : null}
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<section aria-labelledby="bal-heading" style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<h2 id="bal-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em;">Balances</h2>
+<div style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow-x: auto;">
+<div style="min-width: 640px; padding: 4px 8px;">
+<${DS.Table} caption="Balances">
+<thead><tr><th scope="col">Asset</th><th scope="col" class="acme-table__num">Available</th><th scope="col" class="acme-table__num">In orders</th><th scope="col" class="acme-table__num">Value</th><th scope="col">Share</th><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;">Actions</span></th></tr></thead>
+<tbody>
+${(v.balRows || []).map((b) => html`
+<tr>
+<td>
+<div style="display: flex; align-items: center; gap: 12px;">
+<span aria-hidden="true" style="display: inline-grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: var(--acme-radius-md); border: 1px solid var(--acme-color-border); background: var(--acme-color-surface); font-weight: 700; font-size: 13px;">${b.initial}</span>
+<span style="display: flex; flex-direction: column; line-height: 1.3;"><strong style="font-weight: 600;">${b.symbol}</strong><span style="font-size: 12px; color: var(--acme-color-text-muted);">${b.name}</span></span>
+</div>
+</td>
+<td class="acme-table__num">${b.avail}</td>
+<td class="acme-table__num" style="color: var(--acme-color-text-muted);">${b.locked}</td>
+<td class="acme-table__num" style="font-weight: 600;">${b.value}</td>
+<td>
+<div style="display: flex; align-items: center; gap: 8px;">
+<span aria-hidden="true" style="display: block; width: 64px; height: 6px; border-radius: var(--acme-radius-sm); background: var(--acme-color-surface); overflow: hidden;"><span style="display: block; height: 100%; width: ${b.share}%; background: var(--acme-color-data);"></span></span>
+<span style="font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">${b.shareLabel}</span>
+</div>
+</td>
+<td class="acme-table__num">
+<div style="display: inline-flex; gap: 4px;">
+<${DS.Button} variant="ghost" size="sm" on-click=${b.deposit} aria-label=${b.depositLabel}>Deposit<//>
+<${DS.Button} variant="ghost" size="sm" on-click=${b.withdraw} aria-label=${b.withdrawLabel}>Withdraw<//>
+</div>
+</td>
+</tr>
+`)}
+</tbody>
+<//>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="move-heading" style="flex: 1 1 360px; min-width: 0; background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text);">
+<div style="padding: 16px 20px 0;">
+<h2 id="move-heading" style="margin: 0 0 8px; font-family: var(--acme-font-sans); font-size: 20px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Move funds</h2>
+<${DS.Tabs} tabs=${v.moveTabs} active=${v.moveTab} on-change=${v.setMoveTab} id-prefix="move" label="Move funds"><//>
+</div>
+<div id=${v.movePanelId} role="tabpanel" aria-labelledby=${v.moveTabId} style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+<${DS.Field} label="Asset" html-for="move-asset"><${DS.Select} id="move-asset" value=${v.asset} on-change=${v.onAsset}>${(v.assetOptions || []).map((o) => html`<option value=${o.value}>${o.label}</option>`)}<//><//>
+
+${v.isDeposit ? html`
+<div style="display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<span style="font-size: 14px; font-weight: 600;">Your ${v.network} deposit address</span>
+<div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border: 1px solid var(--acme-color-border); border-radius: var(--acme-radius-md); background: var(--acme-color-surface);">
+<code style="flex: 1; min-width: 0; font-family: var(--acme-font-mono); font-size: 13px; word-break: break-all;">${v.address}</code>
+<${DS.Button} variant="secondary" size="sm" on-click=${v.copy}>${v.copyText}<//>
+</div>
+<p style="margin: 0; font-size: 12px; color: var(--acme-color-text-muted);">Send only ${v.asset} on the ${v.network} network. Anything else sent here is lost. Credits after ${v.confirms} confirmations.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px solid var(--acme-color-border);">
+<p style="margin: 0; font-size: 13px; color: var(--acme-color-text-muted);">Simulated custody: enter an amount to mimic an incoming on-chain transfer.</p>
+<${DS.Field} label=${v.simLabel} html-for="sim-amount" error=${v.simError}><${DS.Input} id="sim-amount" inputmode="decimal" placeholder="0.00" value=${v.simAmount} on-change=${v.onSim}><//><//>
+<${DS.Button} variant="secondary" on-click=${v.simulate} style="display: grid;">Simulate deposit<//>
+${v.hasSimNote ? html`
+<${DS.Alert} variant="info" title="Deposit detected">${v.simNote}<//>
+` : null}
+</div>
+</div>
+` : null}
+
+${v.isWithdraw ? html`
+<form onSubmit=${v.onWithdraw} novalidate="novalidate" style="display: flex; flex-direction: column; gap: 16px;">
+${v.unverified ? html`
+<${DS.Alert} variant="warning" title="Verification needed">Verify your identity above to turn on withdrawals.<//>
+` : null}
+<${DS.Field} label="Destination address" html-for="wd-address" error=${v.addrError} help=${v.addrHelp}><${DS.Input} id="wd-address" autocomplete="off" spellcheck="false" placeholder=${v.addrPlaceholder} value=${v.wdAddress} disabled=${v.unverified} on-change=${v.onAddress}><//><//>
+<${DS.Field} label=${v.wdLabel} html-for="wd-amount" error=${v.wdError}><${DS.Input} id="wd-amount" inputmode="decimal" placeholder="0.00" value=${v.wdAmount} disabled=${v.unverified} on-change=${v.onWdAmount}><//><//>
+<dl style="margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; padding: 12px 0; border-top: 1px solid var(--acme-color-border); border-bottom: 1px solid var(--acme-color-border);">
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: var(--acme-color-text-muted);">Available</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">${v.availLabel}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: var(--acme-color-text-muted);">Network fee</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">${v.feeLabel}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: var(--acme-color-text-muted);">Minimum</dt><dd style="margin: 0; font-variant-numeric: tabular-nums;">${v.minLabel}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="font-weight: 600;">They receive</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">${v.receiveLabel}</dd></div>
+</dl>
+<${DS.Button} variant="primary" type="submit" disabled=${v.unverified} style="display: grid;">${v.withdrawCta}<//>
+${v.hasWdNote ? html`
+<${DS.Alert} variant="info" title="Withdrawal submitted">${v.wdNote}<//>
+` : null}
+</form>
+` : null}
+</div>
+</section>
+</div>
+
+<section aria-labelledby="tx-heading" style="display: flex; flex-direction: column; gap: 16px;">
+<h2 id="tx-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em;">Transaction history</h2>
+<div style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow-x: auto;">
+<div style="min-width: 760px; padding: 4px 8px;">
+<${DS.Table} caption="Transaction history">
+<thead><tr><th scope="col">Time</th><th scope="col">Type</th><th scope="col">Asset</th><th scope="col" class="acme-table__num">Amount</th><th scope="col">Status</th><th scope="col">Transaction ID</th></tr></thead>
+<tbody>
+${(v.txRows || []).map((t) => html`
+<tr>
+<td style="color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">${t.time}</td>
+<td>${t.type}</td>
+<td style="font-weight: 600;">${t.asset}</td>
+<td class="acme-table__num" style="font-weight: 600; color: ${t.color};">${t.amount}</td>
+<td><${DS.Badge} variant=${t.badge}>${t.status}<//></td>
+<td style="font-family: var(--acme-font-mono); font-size: 13px; color: var(--acme-color-text-muted);">${t.txid}</td>
+</tr>
+`)}
+</tbody>
+<//>
+</div>
+</div>
+</section>
+</main>
+
+<${DS.Modal} open=${v.confirmOpen} title=${v.confirmTitle} on-close=${v.editDetails} dismiss-on-backdrop=${v.no}>
+<dl style="margin: 0 0 16px; display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
+<div style="display: flex; flex-direction: column; gap: 2px;"><dt style="font-size: 12px; color: var(--acme-color-text-muted);">To</dt><dd style="margin: 0; font-family: var(--acme-font-mono); font-size: 13px; word-break: break-all;">${v.wdAddress}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: var(--acme-color-text-muted);">Network</dt><dd style="margin: 0;">${v.network}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: var(--acme-color-text-muted);">They receive</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">${v.receiveLabel}</dd></div>
+</dl>
+<p style="margin: 0; font-size: 13px; color: var(--acme-color-text-muted);">Check the address character by character. Crypto sent to the wrong address can’t be recovered.</p>
+<div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 24px;">
+<${DS.Button} variant="secondary" on-click=${v.editDetails}>Edit details<//>
+<${DS.Button} variant="primary" on-click=${v.confirmWithdraw}>${v.confirmCta}<//>
+</div>
+<//>
+</div>`;
+}
+
+mount(Component, template, {"verified": false});
+</script>
+</body>
+</html>

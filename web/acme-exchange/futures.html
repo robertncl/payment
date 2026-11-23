@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BTC-PERP futures · ACME Exchange</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="styles/modernist-tokens.css">
+<link rel="stylesheet" href="styles/acme-modernist.css">
+<style>
+body{margin:0}
+a{color:var(--blue)}a:hover{color:var(--blue-hover)}
+a.acme-btn{text-decoration:none}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="ds/components/bundle.js"></script>
+<script src="js/runtime.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// Screen logic and markup ported from the ACME Exchange design canvas (Futures.dc.html).
+var NAV = [
+  { label: 'Markets', href: 'index.html' },
+  { label: 'Spot', href: 'trade.html' },
+  { label: 'Futures', href: 'futures.html' },
+  { label: 'Earn', href: 'earn.html' },
+  { label: 'Wallet', href: 'wallet.html' }
+];
+var LAST = 95141.8, MARK = 95139.6, AVAIL = 7412.38, MMR = 0.005, TAKER = 0.0006;
+var LEVS = [1, 2, 3, 5, 10, 20, 25, 50, 75, 100];
+var INTERVALS = [
+  { id: '1m', label: '1m', min: 1 }, { id: '5m', label: '5m', min: 5 }, { id: '15m', label: '15m', min: 15 },
+  { id: '1h', label: '1h', min: 60 }, { id: '4h', label: '4h', min: 240 }, { id: '1D', label: '1D', min: 1440 }
+];
+var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+var NOW = Date.UTC(2026, 9, 17, 14, 30);
+var UP = 'var(--acme-color-text)', DOWN = 'var(--acme-color-text)';
+
+function rng(seed) { var s = seed; return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }
+function fmt(n, dp) { return n.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp }); }
+function signed(n, dp) { return (n >= 0 ? '+' : '−') + fmt(Math.abs(n), dp); }
+function num(s) { var n = parseFloat(String(s).replace(/,/g, '')); return isFinite(n) ? n : 0; }
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function hms(t) { return pad2(Math.floor(t / 3600) % 24) + ':' + pad2(Math.floor(t / 60) % 60) + ':' + pad2(t % 60); }
+function genCandles(seed, n, last, vol) {
+  var r = rng(seed), closes = [], v = 0, i;
+  for (i = 0; i < n; i++) { v += (r() - 0.47) * vol; closes.push(v); }
+  var shift = last - closes[n - 1], prev = closes[0] + shift - vol * 0.3, out = [];
+  for (i = 0; i < n; i++) {
+    var c = closes[i] + shift, o = prev;
+    out.push({ o: o, c: c, h: Math.max(o, c) + r() * vol * 0.6, l: Math.min(o, c) - r() * vol * 0.6, v: 0.25 + r() * 0.75 + Math.abs(c - o) / vol * 0.4 });
+    prev = c;
+  }
+  return out;
+}
+function niceStep(range, count) {
+  var rough = range / count, mag = Math.pow(10, Math.floor(Math.log10(rough))), steps = [1, 2, 2.5, 5, 10];
+  for (var i = 0; i < steps.length; i++) { if (steps[i] * mag >= rough) return steps[i] * mag; }
+  return 10 * mag;
+}
+var BOOK = (function () {
+  var r = rng(211), asks = [], bids = [], ca = 0, cb = 0, a = 95142.3, b = 95141.3, i;
+  for (i = 0; i < 10; i++) { var qa = 0.005 + r() * 0.8; ca += qa; asks.push({ p: a, q: qa, cum: ca }); a += 1 + Math.round(r() * 60) / 10; }
+  for (i = 0; i < 10; i++) { var qb = 0.005 + r() * 0.8; cb += qb; bids.push({ p: b, q: qb, cum: cb }); b -= 1 + Math.round(r() * 60) / 10; }
+  return { asks: asks, bids: bids, max: Math.max(ca, cb) };
+})();
+var TRADES = (function () {
+  var r = rng(307), out = [], t = 14 * 3600 + 32 * 60 + 9, p = LAST;
+  for (var i = 0; i < 10; i++) {
+    var up = i === 0 ? true : r() > 0.45;
+    out.push({ price: fmt(p, 1), amount: fmt(0.001 + Math.round(r() * 400) / 1000, 3), time: hms(t), color: up ? UP : DOWN });
+    p += Math.round((r() - 0.5) * 90) / 10; t -= 1 + Math.floor(r() * 7);
+  }
+  return out;
+})();
+var POSITION = { market: 'BTC-PERP', side: 'long', lev: 10, size: 0.1, entry: 94205.3 };
+var OPEN = [{ id: 'p1', time: '14:05:51', side: 'sell', type: 'Limit', price: 96500, qty: 0.05, lev: 10 }];
+var HISTORY = [
+  { time: '13:12:40', side: 'buy', type: 'Market', price: 94205.3, qty: 0.1, pnl: null, status: 'Filled' },
+  { time: '10:48:02', side: 'sell', type: 'Limit', price: 95020.0, qty: 0.05, pnl: 61.85, status: 'Filled' },
+  { time: '08:30:15', side: 'buy', type: 'Limit', price: 93783.0, qty: 0.05, pnl: null, status: 'Filled' }
+];
+
+class Component extends DCLogic {
+  state = { interval: '15m', posTab: 'positions', side: 'long', lev: 10, orderType: 'limit', price: '95,141.8', qty: '', qtyError: '', placed: '', positions: [POSITION], open: OPEN, history: HISTORY, confirmOpen: false, closed: '', seq: 0 };
+
+  submit() {
+    var s = this.state, q = num(s.qty), isMarket = s.orderType === 'market', px = isMarket ? LAST : num(s.price);
+    if (q <= 0) { this.setState({ qtyError: 'Enter a quantity in BTC. The minimum order value is 5 USDT.', placed: '' }); return; }
+    var margin = px * q / s.lev;
+    if (margin > AVAIL) { this.setState({ qtyError: 'Not enough margin: this needs ' + fmt(margin, 2) + ' USDT. Lower the quantity or raise leverage.', placed: '' }); return; }
+    var verb = s.side === 'long' ? 'Long' : 'Short', seq = s.seq + 1, time = hms(14 * 3600 + 32 * 60 + 12 + seq * 3);
+    if (isMarket) {
+      this.setState({ qty: '', qtyError: '', seq: seq, history: [{ time: time, side: s.side === 'long' ? 'buy' : 'sell', type: 'Market', price: LAST, qty: q, pnl: null, status: 'Filled' }].concat(s.history),
+        placed: verb + ' ' + fmt(q, 3) + ' BTC at ' + s.lev + '× filled at market.' });
+    } else {
+      this.setState({ qty: '', qtyError: '', seq: seq, posTab: 'open', open: [{ id: 'n' + seq, time: time, side: s.side === 'long' ? 'buy' : 'sell', type: 'Limit', price: px, qty: q, lev: s.lev }].concat(s.open),
+        placed: verb + ' ' + fmt(q, 3) + ' BTC at ' + fmt(px, 1) + ', ' + s.lev + '×, is open.' });
+    }
+  }
+
+  renderVals() {
+    var self = this, s = this.state;
+    var mono = (this.props.candles || 'directional') === 'monochrome';
+
+    var iv = INTERVALS.filter(function (x) { return x.id === s.interval; })[0] || INTERVALS[2];
+    var ivIndex = INTERVALS.indexOf(iv), n = 64, vol = 120 * Math.sqrt(iv.min / 15);
+    var cs = genCandles(71 + ivIndex * 19, n, LAST, vol);
+    var lo = Infinity, hi = -Infinity, vmax = 0;
+    cs.forEach(function (c) { lo = Math.min(lo, c.l); hi = Math.max(hi, c.h); vmax = Math.max(vmax, c.v); });
+    lo = Math.min(lo, POSITION.entry);
+    var pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+    function y(p) { return (hi - p) / (hi - lo) * 100; }
+    var candles = cs.map(function (c) {
+      var up = c.c >= c.o, color = mono ? 'var(--acme-color-data)' : (up ? UP : DOWN), top = y(Math.max(c.o, c.c));
+      return { wickTop: y(c.h).toFixed(2), wickH: (y(c.l) - y(c.h)).toFixed(2), bodyTop: top.toFixed(2),
+        bodyH: Math.max(0.4, y(Math.min(c.o, c.c)) - top).toFixed(2), stroke: color,
+        fill: up ? 'var(--acme-color-surface-raised)' : color, volH: (c.v / vmax * 100).toFixed(1) };
+    });
+    var step = niceStep(hi - lo, 5), ticks = [];
+    for (var p = Math.ceil(lo / step) * step; p <= hi; p += step) {
+      var tt = y(p);
+      if (tt > 4 && tt < 96) ticks.push({ top: tt.toFixed(2), label: fmt(p, step < 1 ? 1 : 0) });
+    }
+    var timeLabels = [];
+    for (var k = 4; k < n; k += 15) {
+      var d = new Date(NOW - (n - 1 - k) * iv.min * 60000);
+      timeLabels.push({ label: iv.min >= 1440 ? MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate() : pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) });
+    }
+    var lc = cs[n - 1];
+
+    function bookRow(r, kind) {
+      return { price: fmt(r.p, 1), qty: fmt(r.q, 3), cum: fmt(r.cum, 3), depth: (r.cum / BOOK.max * 100).toFixed(1),
+        label: 'Use ' + kind + ' price ' + fmt(r.p, 1),
+        pick: function () { self.setState({ price: fmt(r.p, 1), orderType: 'limit', qtyError: '' }); } };
+    }
+
+    var positions = s.positions.map(function (ps) {
+      var pnl = (MARK - ps.entry) * ps.size * (ps.side === 'long' ? 1 : -1), margin = ps.entry * ps.size / ps.lev;
+      var liq = ps.side === 'long' ? ps.entry * (1 - 1 / ps.lev + MMR) : ps.entry * (1 + 1 / ps.lev - MMR);
+      return { market: ps.market, sideLabel: (ps.side === 'long' ? 'Long ' : 'Short ') + ps.lev + '×', sideColor: ps.side === 'long' ? UP : DOWN,
+        size: fmt(ps.size, 3), entry: fmt(ps.entry, 1), mark: fmt(MARK, 1), liq: fmt(liq, 1), margin: fmt(margin, 2),
+        pnl: signed(pnl, 2) + ' (' + signed(pnl / margin * 100, 2) + '%)', pnlColor: ps.side === 'long' ? UP : DOWN,
+        closeLabel: 'Close ' + ps.market + ' ' + ps.side + ' position',
+        close: function () { self.setState({ confirmOpen: true }); } };
+    });
+    var cur = s.positions[0];
+    var curPnl = cur ? (MARK - cur.entry) * cur.size * (cur.side === 'long' ? 1 : -1) : 0;
+    var curMargin = cur ? cur.entry * cur.size / cur.lev : 0;
+    var orderMargin = s.open.reduce(function (sum, o) { return sum + o.price * o.qty / o.lev; }, 0);
+
+    var openRows = s.open.map(function (o) {
+      return { time: o.time, sideLabel: o.side === 'buy' ? 'Long' : 'Short', sideColor: o.side === 'buy' ? UP : DOWN, type: o.type,
+        price: fmt(o.price, 1), qty: fmt(o.qty, 3), lev: o.lev + '×',
+        cancelLabel: 'Cancel order at ' + fmt(o.price, 1),
+        cancel: function () { self.setState({ open: self.state.open.filter(function (x) { return x.id !== o.id; }),
+          history: [{ time: o.time, side: o.side, type: o.type, price: o.price, qty: o.qty, pnl: null, status: 'Cancelled' }].concat(self.state.history) }); } };
+    });
+    var historyRows = s.history.map(function (o) {
+      return { time: o.time, sideLabel: o.side === 'buy' ? 'Buy' : 'Sell', sideColor: o.side === 'buy' ? UP : DOWN, type: o.type,
+        price: fmt(o.price, 1), qty: fmt(o.qty, 3), pnl: o.pnl === null ? '—' : signed(o.pnl, 2),
+        pnlColor: o.pnl === null ? 'var(--acme-color-text-muted)' : (o.side === 'buy' ? UP : DOWN),
+        status: o.status, badge: o.status === 'Filled' ? 'success' : 'neutral' };
+    });
+
+    var isLong = s.side === 'long', isMarket = s.orderType === 'market';
+    var px = isMarket ? LAST : num(s.price), q = num(s.qty), value = px * q;
+    var liqNew = isLong ? px * (1 - 1 / s.lev + MMR) : px * (1 + 1 / s.lev - MMR);
+    function seg(active, color) {
+      return active ? { border: 'var(--acme-color-selected)', bg: 'var(--acme-color-selected-soft)', shadow: 'var(--acme-shadow-sm)', ink: 'var(--acme-color-selected)' }
+        : { border: 'transparent', bg: 'transparent', shadow: 'none', ink: 'var(--acme-color-text-muted)' };
+    }
+    var ls = seg(isLong, UP), ss = seg(!isLong, DOWN);
+    var levs = LEVS.map(function (l) {
+      var on = l === s.lev;
+      return { label: l + '×', pressed: on ? 'true' : 'false',
+        border: on ? 'var(--acme-color-selected)' : 'var(--acme-color-border)',
+        bg: on ? 'var(--acme-color-selected-soft)' : 'var(--acme-color-surface-raised)',
+        ink: on ? 'var(--acme-color-selected)' : 'var(--acme-color-text-muted)',
+        pick: function () { self.setState({ lev: l, qtyError: '' }); } };
+    });
+    var pcts = [25, 50, 75, 100].map(function (pc) {
+      return { label: pc === 100 ? 'Max' : pc + '%', aria: 'Use ' + pc + '% of available margin',
+        pick: function () {
+          var qq = px > 0 ? AVAIL * (pc / 100) * s.lev / (px * (1 + TAKER * s.lev)) : 0;
+          self.setState({ qty: (Math.floor(qq * 1000) / 1000).toFixed(3), qtyError: '' });
+        } };
+    });
+
+    return {
+      navLinks: NAV, no: false,
+
+      intervals: INTERVALS.map(function (x) { return { id: x.id, label: x.label }; }),
+      interval: iv.id,
+      setInterval: function (id) { self.setState({ interval: id }); },
+      intervalPanelId: 'interval-panel-' + iv.id, intervalTabId: 'interval-tab-' + iv.id,
+      chartLabel: 'BTC-PERP ' + iv.label + ' candlestick chart, last price ' + fmt(LAST, 1) + ', your entry ' + fmt(POSITION.entry, 1),
+      ohlc: 'O ' + fmt(lc.o, 1) + '  H ' + fmt(lc.h, 1) + '  L ' + fmt(lc.l, 1) + '  C ' + fmt(lc.c, 1),
+      candles: candles, ticks: ticks, timeLabels: timeLabels,
+      lastTop: y(LAST).toFixed(2), lastLabel: fmt(LAST, 1), entryTop: y(POSITION.entry).toFixed(2),
+
+      asks: BOOK.asks.slice().reverse().map(function (r) { return bookRow(r, 'ask'); }),
+      bids: BOOK.bids.map(function (r) { return bookRow(r, 'bid'); }),
+      trades: TRADES,
+
+      posTabs: [{ id: 'positions', label: 'Positions', count: s.positions.length }, { id: 'open', label: 'Orders', count: s.open.length }, { id: 'history', label: 'History' }],
+      posTab: s.posTab,
+      setPosTab: function (id) { self.setState({ posTab: id }); },
+      posPanelId: 'pos-panel-' + s.posTab, posTabId: 'pos-tab-' + s.posTab,
+      showPositions: s.posTab === 'positions', showOpen: s.posTab === 'open', showHistory: s.posTab === 'history',
+      positions: positions, noPositions: positions.length === 0,
+      openRows: openRows, noOpen: openRows.length === 0, historyRows: historyRows,
+      hasClosed: !!s.closed, closedText: s.closed,
+
+      confirmOpen: s.confirmOpen,
+      confirmTitle: 'Close your BTC-PERP long?',
+      confirmBody: cur ? 'This sells ' + fmt(cur.size, 3) + ' BTC at market, near ' + fmt(MARK, 1) + '. About ' + signed(curPnl, 2) + ' USDT of profit and ' + fmt(curMargin, 2) + ' USDT of margin return to your balance.' : '',
+      confirmCta: cur ? 'Close ' + fmt(cur.size, 3) + ' BTC at market' : 'Close position',
+      keepPosition: function () { self.setState({ confirmOpen: false }); },
+      confirmClose: function () {
+        self.setState({ confirmOpen: false, positions: [],
+          history: [{ time: '14:32:20', side: 'sell', type: 'Market', price: MARK, qty: cur.size, pnl: curPnl, status: 'Filled' }].concat(self.state.history),
+          closed: 'Sold ' + fmt(cur.size, 3) + ' BTC at ' + fmt(MARK, 1) + '. ' + signed(curPnl, 2) + ' USDT realized.' });
+      },
+
+      pickLong: function () { self.setState({ side: 'long', qtyError: '', placed: '' }); },
+      pickShort: function () { self.setState({ side: 'short', qtyError: '', placed: '' }); },
+      longPressed: isLong ? 'true' : 'false', shortPressed: isLong ? 'false' : 'true',
+      longBorder: ls.border, longBg: ls.bg, longShadow: ls.shadow, longInk: ls.ink,
+      shortBorder: ss.border, shortBg: ss.bg, shortShadow: ss.shadow, shortInk: ss.ink,
+      levs: levs, levLabel: s.lev + '×',
+      typeTabs: [{ id: 'limit', label: 'Limit' }, { id: 'market', label: 'Market' }],
+      orderType: s.orderType,
+      setOrderType: function (id) { self.setState({ orderType: id, qtyError: '' }); },
+      typePanelId: 'otype-panel-' + s.orderType, typeTabId: 'otype-tab-' + s.orderType,
+      isMarket: isMarket,
+      priceValue: isMarket ? '' : s.price,
+      pricePlaceholder: isMarket ? 'Best available price' : '0.0',
+      priceHelp: isMarket ? 'Fills now at the best price in the book.' : '',
+      onPrice: function (e) { self.setState({ price: e.target.value }); },
+      qty: s.qty, qtyError: s.qtyError,
+      onQty: function (e) { self.setState({ qty: e.target.value, qtyError: '' }); },
+      pcts: pcts,
+      valueLabel: q > 0 ? fmt(value, 2) + ' USDT' : '—',
+      marginLabel: q > 0 ? fmt(value / s.lev, 2) + ' USDT' : '—',
+      liqLabel: q > 0 ? fmt(liqNew, 1) : '—',
+      feeLabel: q > 0 ? fmt(value * TAKER, 4) + ' USDT' : '—',
+      formSide: isLong ? 'long' : 'short',
+      submitVariant: 'primary',
+      levInk: 'var(--acme-color-text)',
+      submitLabel: 'Long ' + (q > 0 ? fmt(q, 3) + ' BTC' : 'BTC') + ' at ' + s.lev + '×',
+      onSubmit: function (e) { e.preventDefault(); self.submit(); },
+      hasPlaced: !!s.placed, placedText: s.placed,
+
+      posMarginLabel: fmt(curMargin, 2) + ' USDT',
+      orderMarginLabel: fmt(orderMargin, 2) + ' USDT',
+      upnlLabel: signed(curPnl, 2) + ' USDT',
+      closeVariant: 'primary',
+      acctColor: 'var(--acme-color-text)',
+      acctLabelColor: 'var(--acme-color-text-muted)',
+      upnlColor: !cur ? 'var(--acme-color-text-muted)' : (cur.side === 'long' ? UP : DOWN)
+    };
+  }
+}
+
+function template(v) {
+return html`<div style="min-height: 100vh; background: var(--acme-color-canvas); color: var(--acme-color-text); font-family: var(--acme-font-sans); font-size: 14px; line-height: 1.5;">
+<${DS.Topbar} links=${v.navLinks} current="Futures">
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+<${DS.Badge} variant="warning">Unverified<//>
+<span style="color: var(--acme-color-text-muted);">trader@example.com</span>
+<a class="acme-btn acme-btn--ghost acme-btn--sm" href="sign-in.html">Sign out</a>
+</div>
+<//>
+
+<div style="background: var(--acme-color-surface-raised); border-bottom: 1px solid var(--acme-color-border);">
+<div style="padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span aria-hidden="true" style="display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--acme-radius-md); border: 1px solid var(--acme-color-border); background: var(--acme-color-surface); font-weight: 700;">B</span>
+<div style="display: flex; flex-direction: column; line-height: 1.2;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<h1 style="margin: 0; font-family: var(--acme-font-sans); font-size: 24px; font-weight: 700; line-height: 1; letter-spacing: -0.02em;">BTC-PERP</h1>
+<${DS.Badge} variant="warning">Up to 100×<//>
+</div>
+<span style="font-size: 12px; color: var(--acme-color-text-muted);">Perpetual · USDT-margined · isolated</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; line-height: 1.2;">
+<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--acme-color-text);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>95,141.8</span>
+<span style="font-size: 12px; color: var(--acme-color-text); font-variant-numeric: tabular-nums;">+1.91% today</span>
+</div>
+<dl style="margin: 0; display: flex; flex-wrap: wrap; gap: 12px 32px;">
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">Mark price</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">95,139.6</dd></div>
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">Index price</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">95,128.40</dd></div>
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">Funding rate · next in</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;"><span style="color: var(--acme-color-text);">+0.0100%</span> <span style="color: var(--acme-color-text-muted); font-weight: 400;">· 07:42</span></dd></div>
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">24h high</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">95,644.2</dd></div>
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">24h low</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">92,861.0</dd></div>
+<div><dt style="font-size: 12px; color: var(--acme-color-text-muted);">24h volume (USDT)</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums;">311.9M</dd></div>
+</dl>
+</div>
+</div>
+
+<div style="padding: 12px 16px 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px;">
+
+<div style="flex: 999 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<section aria-labelledby="chart-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; padding: 8px 16px 0; border-bottom: 1px solid var(--acme-color-border);">
+<div style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; padding-bottom: 10px;">
+<h2 id="chart-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Price chart</h2>
+<span style="font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">${v.ohlc}</span>
+</div>
+<div style="margin-bottom: -1px;">
+<${DS.Tabs} tabs=${v.intervals} active=${v.interval} on-change=${v.setInterval} id-prefix="interval" label="Chart interval"><//>
+</div>
+</div>
+<div id=${v.intervalPanelId} role="tabpanel" aria-labelledby=${v.intervalTabId}>
+<div role="img" aria-label=${v.chartLabel} style="display: flex; height: 320px; padding: 16px 0 0 12px;">
+<div style="position: relative; flex: 1; min-width: 0;">
+${(v.ticks || []).map((t) => html`
+<div style="position: absolute; left: 0; right: 0; top: ${t.top}%; border-top: 1px solid var(--acme-color-surface);"></div>
+`)}
+<div style="position: absolute; inset: 0; display: flex; gap: 2px;">
+${(v.candles || []).map((c) => html`
+<div style="position: relative; flex: 1; min-width: 0;">
+<div style="position: absolute; left: 50%; width: 1px; margin-left: -0.5px; top: ${c.wickTop}%; height: ${c.wickH}%; background: ${c.stroke};"></div>
+<div style="position: absolute; left: 15%; right: 15%; top: ${c.bodyTop}%; height: ${c.bodyH}%; min-height: 1px; box-sizing: border-box; border: 1px solid ${c.stroke}; background: ${c.fill};"></div>
+</div>
+`)}
+</div>
+<div style="position: absolute; left: 0; right: 0; top: ${v.entryTop}%; border-top: 1px dotted var(--acme-color-text-muted);"></div>
+<span style="position: absolute; left: 8px; top: ${v.entryTop}%; transform: translateY(-120%); font-size: 12px; color: var(--acme-color-text-muted); background: var(--acme-color-surface-raised); padding: 0 4px;">Your entry 94,205.3</span>
+<div style="position: absolute; left: 0; right: 0; top: ${v.lastTop}%; border-top: 1px dashed var(--acme-color-data-highlight);"></div>
+</div>
+<div style="position: relative; width: 80px; flex: none;">
+${(v.ticks || []).map((t) => html`
+<span style="position: absolute; left: 10px; top: ${t.top}%; transform: translateY(-50%); font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">${t.label}</span>
+`)}
+<span style="position: absolute; left: 4px; right: 4px; top: ${v.lastTop}%; transform: translateY(-50%); padding: 1px 6px; border-radius: var(--acme-radius-sm); background: var(--acme-color-data-highlight); color: var(--acme-color-canvas); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center;">${v.lastLabel}</span>
+</div>
+</div>
+<div aria-hidden="true" style="display: flex; align-items: flex-end; gap: 2px; height: 48px; padding: 8px 92px 0 12px; border-top: 1px solid var(--acme-color-surface); margin-top: 8px;">
+${(v.candles || []).map((c) => html`
+<div style="flex: 1; min-width: 0; height: ${c.volH}%; background: var(--acme-color-border);"></div>
+`)}
+</div>
+<div aria-hidden="true" style="display: flex; justify-content: space-between; padding: 6px 92px 12px 12px; font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">
+${(v.timeLabels || []).map((tl) => html`<span>${tl.label}</span>`)}
+</div>
+</div>
+</section>
+
+<section aria-labelledby="pos-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; padding: 8px 16px 0; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="pos-heading" style="margin: 0; padding-bottom: 10px; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Your positions</h2>
+<div style="margin-bottom: -1px;">
+<${DS.Tabs} tabs=${v.posTabs} active=${v.posTab} on-change=${v.setPosTab} id-prefix="pos" label="Your positions and orders"><//>
+</div>
+</div>
+${v.hasClosed ? html`
+<div style="padding: 12px 16px 0;">
+<${DS.Alert} variant="success" title="Position closed">${v.closedText}<//>
+</div>
+` : null}
+<div id=${v.posPanelId} role="tabpanel" aria-labelledby=${v.posTabId} style="overflow-x: auto;">
+<div style="min-width: 760px; padding: 0 8px 8px;">
+${v.showPositions ? html`
+<${DS.Table} caption="Open positions">
+<thead><tr><th scope="col">Contract</th><th scope="col">Side</th><th scope="col" class="acme-table__num">Size (BTC)</th><th scope="col" class="acme-table__num">Entry</th><th scope="col" class="acme-table__num">Mark</th><th scope="col" class="acme-table__num">Liq. price</th><th scope="col" class="acme-table__num">Margin</th><th scope="col" class="acme-table__num">Unrealized PnL (ROE)</th><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;">Actions</span></th></tr></thead>
+<tbody>
+${(v.positions || []).map((p) => html`
+<tr>
+<td style="font-weight: 600; color: ${p.sideColor};">${p.market}</td>
+<td style="font-weight: 600; color: ${p.sideColor};">${p.sideLabel}</td>
+<td class="acme-table__num" style="color: ${p.sideColor};">${p.size}</td>
+<td class="acme-table__num" style="color: ${p.sideColor};">${p.entry}</td>
+<td class="acme-table__num" style="color: ${p.sideColor};">${p.mark}</td>
+<td class="acme-table__num" style="color: ${p.sideColor};"><span style="display: inline-flex; align-items: center; gap: 4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Warning" style="flex: none; color: var(--acme-color-text);"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>${p.liq}</span></td>
+<td class="acme-table__num" style="color: ${p.sideColor};">${p.margin}</td>
+<td class="acme-table__num" style="font-weight: 600; color: ${p.pnlColor};">${p.pnl}</td>
+<td class="acme-table__num" data-side=${p.sideLabel}><${DS.Button} variant="secondary" size="sm" on-click=${p.close} aria-label=${p.closeLabel}>Close<//></td>
+</tr>
+`)}
+</tbody>
+<//>
+${v.noPositions ? html`<p style="margin: 0; padding: 24px 12px; color: var(--acme-color-text-muted);">No open positions. Go long or short from the order panel.</p>` : null}
+` : null}
+${v.showOpen ? html`
+<${DS.Table} caption="Open orders">
+<thead><tr><th scope="col">Time</th><th scope="col">Side</th><th scope="col">Type</th><th scope="col" class="acme-table__num">Price</th><th scope="col" class="acme-table__num">Qty (BTC)</th><th scope="col" class="acme-table__num">Leverage</th><th scope="col">Status</th><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;">Actions</span></th></tr></thead>
+<tbody>
+${(v.openRows || []).map((o) => html`
+<tr>
+<td style="color: ${o.sideColor}; font-variant-numeric: tabular-nums;">${o.time}</td>
+<td style="font-weight: 600; color: ${o.sideColor};">${o.sideLabel}</td>
+<td style="color: ${o.sideColor};">${o.type}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.price}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.qty}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.lev}</td>
+<td data-side=${o.sideLabel}><${DS.Badge} variant="info">Open<//></td>
+<td class="acme-table__num" data-side=${o.sideLabel}><${DS.Button} variant="ghost" size="sm" on-click=${o.cancel} aria-label=${o.cancelLabel}>Cancel<//></td>
+</tr>
+`)}
+</tbody>
+<//>
+${v.noOpen ? html`<p style="margin: 0; padding: 24px 12px; color: var(--acme-color-text-muted);">No open orders.</p>` : null}
+` : null}
+${v.showHistory ? html`
+<${DS.Table} caption="Order history">
+<thead><tr><th scope="col">Time</th><th scope="col">Side</th><th scope="col">Type</th><th scope="col" class="acme-table__num">Price</th><th scope="col" class="acme-table__num">Qty (BTC)</th><th scope="col" class="acme-table__num">Realized PnL</th><th scope="col">Status</th></tr></thead>
+<tbody>
+${(v.historyRows || []).map((o) => html`
+<tr>
+<td style="color: ${o.sideColor}; font-variant-numeric: tabular-nums;">${o.time}</td>
+<td style="font-weight: 600; color: ${o.sideColor};">${o.sideLabel}</td>
+<td style="color: ${o.sideColor};">${o.type}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.price}</td>
+<td class="acme-table__num" style="color: ${o.sideColor};">${o.qty}</td>
+<td class="acme-table__num" style="color: ${o.pnlColor};">${o.pnl}</td>
+<td data-side=${o.sideLabel}><${DS.Badge} variant=${o.badge}>${o.status}<//></td>
+</tr>
+`)}
+</tbody>
+<//>
+` : null}
+</div>
+</div>
+</section>
+</div>
+
+<div style="flex: 1 1 290px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<section aria-labelledby="book-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow: hidden;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="book-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Order book</h2>
+<span style="font-size: 12px; color: var(--acme-color-text-muted);">Select a price to use it</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 8px 16px 4px; font-size: 12px; font-weight: 600; color: var(--acme-color-text-muted);">
+<span>Price (USDT)</span><span style="text-align: right;">Qty (BTC)</span><span style="text-align: right;">Total (BTC)</span>
+</div>
+<div style="display: flex; flex-direction: column;">
+${(v.asks || []).map((r) => html`
+<button type="button" onClick=${r.pick} aria-label=${r.label} style="position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 16px; border: none; background: none; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--acme-color-text); text-align: left; cursor: pointer;">
+<span aria-hidden="true" style="position: absolute; top: 1px; bottom: 1px; right: 0; width: ${r.depth}%; background: var(--acme-color-surface);"></span>
+<span style="position: relative; font-weight: 600; color: var(--acme-color-text);">${r.price}</span>
+<span style="position: relative; text-align: right;">${r.qty}</span>
+<span style="position: relative; text-align: right; color: var(--acme-color-text-muted);">${r.cum}</span>
+</button>
+`)}
+</div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 6px 0; padding: 8px 16px; border-top: 1px solid var(--acme-color-border); border-bottom: 1px solid var(--acme-color-border);">
+<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--acme-color-text);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>95,141.8</span>
+<span style="font-size: 12px; color: var(--acme-color-text-muted); font-variant-numeric: tabular-nums;">Mark 95,139.6</span>
+</div>
+<div style="display: flex; flex-direction: column; padding-bottom: 8px;">
+${(v.bids || []).map((r) => html`
+<button type="button" onClick=${r.pick} aria-label=${r.label} style="position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 16px; border: none; background: none; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--acme-color-text); text-align: left; cursor: pointer;">
+<span aria-hidden="true" style="position: absolute; top: 1px; bottom: 1px; right: 0; width: ${r.depth}%; background: var(--acme-color-surface);"></span>
+<span style="position: relative; font-weight: 600; color: var(--acme-color-text);">${r.price}</span>
+<span style="position: relative; text-align: right;">${r.qty}</span>
+<span style="position: relative; text-align: right; color: var(--acme-color-text-muted);">${r.cum}</span>
+</button>
+`)}
+</div>
+</section>
+
+<section aria-labelledby="trades-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text); overflow: hidden;">
+<div style="padding: 12px 16px; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="trades-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Recent trades</h2>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 8px 16px 4px; font-size: 12px; font-weight: 600; color: var(--acme-color-text-muted);">
+<span>Price (USDT)</span><span style="text-align: right;">Qty (BTC)</span><span style="text-align: right;">Time</span>
+</div>
+<div style="display: flex; flex-direction: column; padding-bottom: 8px;">
+${(v.trades || []).map((t) => html`
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 2px 16px; font-size: 13px; font-variant-numeric: tabular-nums;">
+<span style="font-weight: 600; color: ${t.color};">${t.price}</span>
+<span style="text-align: right;">${t.amount}</span>
+<span style="text-align: right; color: var(--acme-color-text-muted);">${t.time}</span>
+</div>
+`)}
+</div>
+</section>
+</div>
+
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<section aria-labelledby="form-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text);">
+<div style="padding: 12px 16px; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="form-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em;">Open a position</h2>
+</div>
+<form data-side=${v.formSide} onSubmit=${v.onSubmit} novalidate="novalidate" style="display: flex; flex-direction: column; gap: 16px; padding: 16px;">
+<div role="group" aria-label="Direction" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: var(--acme-radius-md); background: var(--acme-color-surface);">
+<button type="button" onClick=${v.pickLong} aria-pressed=${v.longPressed} style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border-radius: var(--acme-radius-sm); border: 1px solid ${v.longBorder}; background: ${v.longBg}; box-shadow: ${v.longShadow}; font: inherit; font-weight: 600; color: ${v.longInk}; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>Long</button>
+<button type="button" onClick=${v.pickShort} aria-pressed=${v.shortPressed} style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border-radius: var(--acme-radius-sm); border: 1px solid ${v.shortBorder}; background: ${v.shortBg}; box-shadow: ${v.shortShadow}; font: inherit; font-weight: 600; color: ${v.shortInk}; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10"/><path d="M17 7v10H7"/></svg>Short</button>
+</div>
+<fieldset style="margin: 0; padding: 0; border: none; display: flex; flex-direction: column; gap: 8px;">
+<legend style="display: flex; justify-content: space-between; width: 100%; padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 600;"><span style="color: ${v.levInk};">Leverage</span><span style="color: ${v.levInk}; font-variant-numeric: tabular-nums;">${v.levLabel}</span></legend>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px;">
+${(v.levs || []).map((l) => html`
+<button type="button" onClick=${l.pick} aria-pressed=${l.pressed} style="min-height: 32px; border-radius: var(--acme-radius-sm); border: 1px solid ${l.border}; background: ${l.bg}; color: ${l.ink}; font: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer;">${l.label}</button>
+`)}
+</div>
+</fieldset>
+<${DS.Tabs} tabs=${v.typeTabs} active=${v.orderType} on-change=${v.setOrderType} id-prefix="otype" label="Order type"><//>
+<div id=${v.typePanelId} role="tabpanel" aria-labelledby=${v.typeTabId} style="display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: ${v.levInk};">
+<span>Available margin</span><span style="font-weight: 600; color: ${v.levInk}; font-variant-numeric: tabular-nums;">7,412.38 USDT</span>
+</div>
+<${DS.Field} label="Price (USDT)" html-for="perp-price" help=${v.priceHelp}><${DS.Input} id="perp-price" inputmode="decimal" value=${v.priceValue} placeholder=${v.pricePlaceholder} disabled=${v.isMarket} on-change=${v.onPrice}><//><//>
+<${DS.Field} label="Quantity (BTC)" html-for="perp-qty" error=${v.qtyError}><${DS.Input} id="perp-qty" inputmode="decimal" placeholder="0.000" value=${v.qty} on-change=${v.onQty}><//><//>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+${(v.pcts || []).map((p) => html`
+<${DS.Button} variant="secondary" size="sm" on-click=${p.pick} aria-label=${p.aria} style="display: grid;">${p.label}<//>
+`)}
+</div>
+<dl style="margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.levInk};">Order value</dt><dd style="margin: 0; font-variant-numeric: tabular-nums; color: ${v.levInk};">${v.valueLabel}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.levInk};">Margin required</dt><dd style="margin: 0; font-variant-numeric: tabular-nums; color: ${v.levInk};">${v.marginLabel}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.levInk};">Est. liquidation price</dt><dd style="margin: 0; display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; color: ${v.levInk};"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Warning" style="flex: none; color: var(--acme-color-text);"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>${v.liqLabel}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.levInk};">Est. fee (0.06%)</dt><dd style="margin: 0; font-variant-numeric: tabular-nums; color: ${v.levInk};">${v.feeLabel}</dd></div>
+</dl>
+<${DS.Button} variant=${v.submitVariant} size="lg" type="submit" style="display: grid;">${v.submitLabel}<//>
+${v.hasPlaced ? html`
+<${DS.Alert} variant="success" title="Order placed">${v.placedText}<//>
+` : null}
+<p style="margin: 0; font-size: 12px; color: var(--acme-color-text-muted);">Isolated margin · Max 100× · Maintenance margin 0.50%</p>
+</div>
+</form>
+</section>
+
+<section aria-labelledby="acct-heading" style="background: var(--acme-color-surface-raised); border-top: 2px solid var(--acme-color-text);">
+<div style="padding: 12px 16px; border-bottom: 1px solid var(--acme-color-border);">
+<h2 id="acct-heading" style="margin: 0; font-family: var(--acme-font-sans); font-size: 18px; font-weight: 700; line-height: 1.1; letter-spacing: -0.011em; color: ${v.acctColor};">Margin</h2>
+</div>
+<dl style="margin: 0; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.acctLabelColor};">Available</dt><dd style="margin: 0; font-variant-numeric: tabular-nums; color: ${v.acctColor};">7,412.38 USDT</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.acctLabelColor};">Position margin</dt><dd style="margin: 0; font-variant-numeric: tabular-nums; color: ${v.acctColor};">${v.posMarginLabel}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.acctLabelColor};">Order margin</dt><dd style="margin: 0; font-variant-numeric: tabular-nums; color: ${v.acctColor};">${v.orderMarginLabel}</dd></div>
+<div style="display: flex; justify-content: space-between; gap: 8px;"><dt style="color: ${v.acctLabelColor};">Unrealized PnL</dt><dd style="margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; color: ${v.upnlColor};">${v.upnlLabel}</dd></div>
+</dl>
+</section>
+</div>
+
+</div>
+
+<${DS.Modal} open=${v.confirmOpen} title=${v.confirmTitle} on-close=${v.keepPosition} dismiss-on-backdrop=${v.no}>
+<p style="margin: 0 0 12px;">${v.confirmBody}</p>
+<p style="margin: 0; font-size: 13px; color: var(--acme-color-text-muted);">Closing fills right away at the best price in the book. It can’t be undone.</p>
+<div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 24px;">
+<${DS.Button} variant="secondary" on-click=${v.keepPosition}>Keep position<//>
+<${DS.Button} variant=${v.closeVariant} on-click=${v.confirmClose}>${v.confirmCta}<//>
+</div>
+<//>
+</div>`;
+}
+
+mount(Component, template, {"candles": "directional"});
+</script>
+</body>
+</html>

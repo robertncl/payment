@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · ACME Exchange</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="styles/modernist-tokens.css">
+<link rel="stylesheet" href="styles/acme-modernist.css">
+<style>
+body{margin:0}
+a{color:var(--blue)}a:hover{color:var(--blue-hover)}
+a.acme-btn{text-decoration:none}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="ds/components/bundle.js"></script>
+<script src="js/runtime.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// Screen logic and markup ported from the ACME Exchange design canvas (SignIn.dc.html).
+class Component extends DCLogic {
+  state = { email: '', password: '', emailError: '', passwordError: '', success: false };
+  renderVals() {
+    var self = this, s = this.state;
+    return {
+      yes: true,
+      email: s.email, password: s.password, emailError: s.emailError, passwordError: s.passwordError,
+      onEmail: function (e) { self.setState({ email: e.target.value, emailError: '' }); },
+      onPassword: function (e) { self.setState({ password: e.target.value, passwordError: '' }); },
+      hasSuccess: s.success,
+      onSubmit: function (e) {
+        e.preventDefault();
+        var emailError = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email.trim()) ? '' : 'Enter the email you signed up with, like you@example.com.';
+        var passwordError = s.password ? '' : 'Enter your password.';
+        self.setState({ emailError: emailError, passwordError: passwordError, success: !emailError && !passwordError });
+      }
+    };
+  }
+}
+
+function template(v) {
+return html`<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--acme-color-canvas); color: var(--acme-color-text); font-family: var(--acme-font-sans); font-size: 14px; line-height: 1.5;">
+<aside style="flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 48px; padding: 40px 56px; background: var(--acme-gray-900); color: var(--acme-gray-50);">
+<${DS.Wordmark} on-dark=${v.yes} href="index.html" style="font-size: 18px;"><//>
+<div style="display: flex; flex-direction: column; gap: 24px; max-width: 520px;">
+<p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--acme-blue-300);">ACME Exchange</p>
+<p style="margin: 0; font-family: var(--acme-font-sans); font-size: 72px; font-weight: 800; line-height: 0.95; letter-spacing: -0.03em; text-wrap: balance;">Every order, accounted for.</p>
+<p style="margin: 0; font-size: 16px; color: var(--acme-gray-200); max-width: 46ch;">Spot pairs, perpetual futures and Earn, settled on a double-entry ledger you can audit line by line.</p>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; color: var(--acme-gray-100);">
+<li style="display: flex; gap: 12px; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--acme-blue-300);"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg>4 spot pairs and 3 perpetual contracts, up to 100×</li>
+<li style="display: flex; gap: 12px; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--acme-blue-300);"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Earn up to 16.50% APR on idle balances</li>
+<li style="display: flex; gap: 12px; align-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--acme-blue-300);"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>Simulated custody: no real funds move</li>
+</ul>
+</div>
+<p style="margin: 0; font-size: 12px; color: var(--acme-gray-300);">A demo exchange. Prices come from a market-maker bot.</p>
+</aside>
+
+<main style="flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; padding: 24px 32px 48px;">
+<div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 0;">
+<form onSubmit=${v.onSubmit} novalidate="novalidate" style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px;">
+<div>
+<h1 style="margin: 0 0 8px; font-family: var(--acme-font-sans); font-size: 44px; font-weight: 700; line-height: 1; letter-spacing: -0.02em;">Sign in</h1>
+<p style="margin: 0; color: var(--acme-color-text-muted);">Welcome back. Your orders and balances are where you left them.</p>
+</div>
+${v.hasSuccess ? html`
+<${DS.Alert} variant="success" title="Signed in"><p style="margin: 0;"><a href="index.html">Continue to Markets</a></p><//>
+` : null}
+<${DS.Field} label="Email" html-for="signin-email" error=${v.emailError}><${DS.Input} id="signin-email" type="email" autocomplete="email" placeholder="you@example.com" value=${v.email} on-change=${v.onEmail}><//><//>
+<${DS.Field} label="Password" html-for="signin-password" error=${v.passwordError}><${DS.Input} id="signin-password" type="password" autocomplete="current-password" value=${v.password} on-change=${v.onPassword}><//><//>
+<${DS.Button} variant="primary" size="lg" type="submit" style="display: grid;">Sign in<//>
+<p style="margin: 0; color: var(--acme-color-text-muted);">New to ACME Exchange? <a href="create-account.html">Create an account</a></p>
+</form>
+</div>
+</main>
+</div>`;
+}
+
+mount(Component, template, {});
+</script>
+</body>
+</html>

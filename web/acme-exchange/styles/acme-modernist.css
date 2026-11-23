@@ -1,0 +1,359 @@
+/*
+ * ACME Exchange on the Modernist design system.
+ *
+ * Load after modernist-tokens.css. The screens still mount the ACME component
+ * scripts (for their behaviour: tab keys, modal focus, field wiring) and their
+ * markup still names --acme-* tokens. This sheet:
+ *   1. points every --acme-* token at a Modernist value, and
+ *   2. restyles every .acme-* component class to Modernist rules:
+ *      square corners, black rules, no shadows, Archivo, blue for action and
+ *      "you are here", red for danger only.
+ */
+
+/* 1. Token bridge -------------------------------------------------------- */
+:root {
+  --acme-font-sans: var(--font-sans);
+  --acme-font-display: var(--font-sans);
+  --acme-font-mono: var(--font-mono);
+
+  --acme-color-canvas: var(--paper);
+  --acme-color-surface: var(--paper-2);
+  --acme-color-surface-hover: var(--paper-2);
+  --acme-color-surface-raised: var(--paper);
+  --acme-color-border: var(--rule);
+  --acme-color-border-control: var(--ink);
+  --acme-color-border-strong: var(--ink);
+  --acme-color-text: var(--ink);
+  --acme-color-text-muted: var(--ink-2);
+  --acme-color-text-subtle: var(--ink-3);
+  --acme-color-primary: var(--blue);
+  --acme-color-primary-hover: var(--blue-hover);
+  --acme-color-primary-active: var(--blue-hover);
+  --acme-color-on-primary: var(--on-blue);
+  --acme-color-mark: var(--ink);
+  --acme-color-accent: var(--ink);
+  --acme-color-accent-soft: var(--paper-2);
+  --acme-color-selected: var(--blue);
+  --acme-color-selected-soft: var(--blue-soft);
+  --acme-color-link: var(--blue);
+  --acme-color-link-hover: var(--blue-hover);
+  --acme-color-focus: var(--blue);
+
+  /* Status is carried by words, not hue: everything but danger is ink. */
+  --acme-color-success: var(--ink);
+  --acme-color-success-soft: var(--paper);
+  --acme-color-success-soft-text: var(--ink);
+  --acme-color-success-border: var(--ink);
+  --acme-color-warning: var(--ink);
+  --acme-color-warning-soft: var(--paper);
+  --acme-color-warning-soft-text: var(--ink);
+  --acme-color-warning-border: var(--ink);
+  --acme-color-info: var(--ink);
+  --acme-color-info-soft: var(--paper);
+  --acme-color-info-soft-text: var(--ink);
+  --acme-color-info-border: var(--ink);
+  --acme-color-danger: var(--red);
+  --acme-color-danger-emphasis: var(--red);
+  --acme-color-danger-emphasis-hover: #8f1209;
+  --acme-color-danger-soft: var(--paper);
+  --acme-color-danger-soft-text: var(--red);
+  --acme-color-danger-border: var(--red);
+
+  --acme-color-data: var(--data-line);
+  --acme-color-data-highlight: var(--data-highlight);
+  --acme-color-scrim: rgb(17 17 17 / 0.6);
+
+  /* Neutral ramp onto Modernist neutrals (the sign-in panel uses these) */
+  --acme-gray-0: var(--paper);
+  --acme-gray-50: var(--paper);
+  --acme-gray-100: var(--paper);
+  --acme-gray-200: var(--paper);
+  --acme-gray-300: var(--rule);
+  --acme-gray-400: var(--ink-3);
+  --acme-gray-500: var(--ink-3);
+  --acme-gray-600: var(--ink-2);
+  --acme-gray-700: var(--ink-2);
+  --acme-gray-800: var(--ink);
+  --acme-gray-900: var(--ink);
+  --acme-gray-950: var(--ink);
+  --acme-blue-50: var(--blue-soft);
+  --acme-blue-100: var(--blue-soft);
+  --acme-blue-300: var(--paper);
+  --acme-blue-600: var(--blue);
+  --acme-blue-700: var(--blue-hover);
+  --acme-blue-800: var(--blue-hover);
+  --acme-red-50: var(--paper);
+  --acme-red-100: var(--paper);
+  --acme-red-600: var(--red);
+  --acme-red-700: var(--red);
+
+  /* Space (ACME rem steps, kept so existing layouts hold) */
+  --acme-space-1: 0.25rem;
+  --acme-space-2: 0.5rem;
+  --acme-space-3: 0.75rem;
+  --acme-space-4: 1rem;
+  --acme-space-5: 1.25rem;
+  --acme-space-6: 1.5rem;
+  --acme-space-8: 2rem;
+  --acme-space-10: 2.5rem;
+  --acme-space-12: 3rem;
+  --acme-space-16: 4rem;
+
+  /* Square, flat */
+  --acme-radius-sm: 0px;
+  --acme-radius-md: 0px;
+  --acme-radius-lg: 0px;
+  --acme-radius-xl: 0px;
+  --acme-radius-full: 0px;
+  --acme-shadow-sm: none;
+  --acme-shadow-md: none;
+  --acme-shadow-lg: none;
+
+  --acme-text-xs: 0.75rem;
+  --acme-text-sm: 0.875rem;
+  --acme-text-md: 1rem;
+  --acme-text-lg: 1.125rem;
+  --acme-leading-normal: 1.5;
+  --acme-tracking-snug: 0;
+  --acme-duration-fast: 100ms;
+  --acme-duration-base: 150ms;
+  --acme-ease-out: cubic-bezier(0.2, 0.8, 0.4, 1);
+
+  accent-color: var(--blue);
+}
+
+/* 2. Base ---------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 400 16px/1.5 var(--font-sans);
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { margin: 0 0 var(--space-3); font-weight: 700; line-height: 1.1; text-wrap: balance; }
+p { margin: 0 0 var(--space-3); text-wrap: pretty; }
+a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--blue-hover); }
+code, pre { font-family: var(--font-mono); font-size: 13px; }
+:is(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-hair);
+}
+.acme-visually-hidden {
+  position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* 3. Product name (Modernist has no logo: the name is set in Archivo 800) */
+.acme-wordmark {
+  display: inline-flex;
+  align-items: center;
+  font: 800 1.375rem/1 var(--font-sans);
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.acme-wordmark__mark { display: none; }
+.acme-wordmark--on-dark { color: var(--paper); }
+
+/* 4. Buttons: square, 2px ink edge; hover fills ink. One blue primary. */
+.acme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: var(--stroke-rule) solid var(--ink);
+  border-radius: 0;
+  font: 600 14px/1 var(--font-sans);
+  color: var(--ink);
+  background: var(--paper);
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 100ms ease-out, color 100ms ease-out, border-color 100ms ease-out;
+}
+.acme-btn:hover, .acme-btn--secondary:hover { background: var(--ink); color: var(--paper); }
+.acme-btn--primary { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
+.acme-btn--primary:hover, .acme-btn--primary:active { background: var(--blue-hover); border-color: var(--blue-hover); color: var(--on-blue); }
+.acme-btn--ghost { border-color: transparent; background: transparent; }
+.acme-btn--ghost:hover { background: transparent; color: var(--ink); border-color: var(--ink); }
+.acme-btn--danger { background: var(--red); border-color: var(--red); color: var(--paper); }
+.acme-btn--danger:hover { background: #8f1209; border-color: #8f1209; color: var(--paper); }
+.acme-btn--sm { min-height: 32px; padding: 0 var(--space-2); font-size: 13px; }
+.acme-btn--lg { min-height: 52px; padding: 0 var(--space-4); font-size: 16px; }
+.acme-btn--icon { inline-size: 32px; padding: 0; }
+.acme-btn:disabled, .acme-btn:disabled:hover, .acme-btn:disabled:active {
+  background: var(--paper-2);
+  border-color: var(--rule);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+/* 5. Fields: uppercase label above a 44px square control with a 2px ink edge */
+.acme-field { display: grid; gap: var(--space-2); }
+.acme-label { font: 600 12px/1.2 var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+.acme-label__optional { font-weight: 400; color: var(--ink-3); text-transform: none; letter-spacing: 0; }
+.acme-input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: var(--stroke-rule) solid var(--ink);
+  border-radius: 0;
+  font: 400 16px/1.5 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: var(--paper);
+}
+.acme-input::placeholder { color: var(--ink-3); }
+.acme-input[aria-invalid="true"] { border-color: var(--red); }
+.acme-input:disabled { background: var(--paper-2); border-color: var(--rule); color: var(--ink-3); cursor: not-allowed; }
+.acme-help { margin: 0; font-size: 14px; color: var(--ink-3); }
+.acme-error { margin: 0; font-size: 14px; font-weight: 600; color: var(--red); }
+.acme-choice { display: flex; align-items: flex-start; gap: var(--space-2); font-size: 14px; }
+.acme-choice input { inline-size: 1rem; block-size: 1rem; margin: 0.125rem 0 0; flex: none; }
+.acme-switch { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 14px; }
+.acme-switch input {
+  appearance: none; position: relative; inline-size: 40px; block-size: 22px; flex: none; margin: 0;
+  border: var(--stroke-rule) solid var(--ink); border-radius: 0; background: var(--paper); cursor: pointer;
+}
+.acme-switch input::before {
+  content: ""; position: absolute; inset-block-start: 2px; inset-inline-start: 2px;
+  inline-size: 14px; block-size: 14px; background: var(--ink); transition: translate 150ms ease-out;
+}
+.acme-switch input:checked { background: var(--blue); border-color: var(--blue); }
+.acme-switch input:checked::before { background: var(--paper); translate: 18px 0; }
+
+/* 6. Card: no box, a 2px rule opens it */
+.acme-card { display: flex; flex-direction: column; border-top: var(--stroke-rule) solid var(--ink); background: var(--paper); }
+.acme-card__media { aspect-ratio: 16 / 9; background: var(--paper-2); display: grid; place-items: center; color: var(--ink-3); }
+.acme-card__body { padding: var(--space-3) 0; flex: 1; }
+.acme-card__title { font: 700 18px/1.25 var(--font-sans); margin: 0 0 var(--space-1); }
+.acme-card__footer { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) 0; border-top: 1px solid var(--rule); }
+
+/* 7. Badge: a label in a 1px ink frame. The word carries the status. */
+.acme-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 6px;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  font: 600 11px/1.3 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--paper);
+  color: var(--ink);
+}
+.acme-badge--danger { border-color: var(--red); color: var(--red); }
+.acme-status-icon { flex: none; }
+
+/* 8. Alert: a 4px rule on top, a bold title, no fill */
+.acme-alert {
+  display: block;
+  padding: var(--space-3) 0 0;
+  border-top: var(--stroke-alert) solid var(--ink);
+  font-size: 14px;
+  color: var(--ink);
+}
+.acme-alert--danger { border-top-color: var(--red); }
+.acme-alert__icon { display: none; }
+.acme-alert__title { font: 700 18px/1.25 var(--font-sans); margin: 0 0 var(--space-1); }
+.acme-alert--danger .acme-alert__title { color: var(--red); }
+.acme-alert p { margin: 0; }
+.acme-alert p + p { margin-block-start: var(--space-1); color: var(--ink-2); }
+
+/* 9. Table: uppercase column labels over a 2px rule, hairline rows */
+.acme-table { inline-size: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.acme-table th {
+  text-align: start;
+  font: 600 12px/1.2 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: var(--space-2) var(--space-2);
+  background: transparent;
+  border-bottom: var(--stroke-rule) solid var(--ink);
+  white-space: nowrap;
+}
+.acme-table td { padding: 12px var(--space-2); border-bottom: 1px solid var(--rule); }
+.acme-table tbody tr:hover { background: var(--paper-2); }
+.acme-table .acme-table__num { text-align: end; font-variant-numeric: tabular-nums; }
+.acme-table th:is([aria-sort="ascending"], [aria-sort="descending"]) { color: var(--ink); }
+.acme-table tbody tr[aria-selected="true"],
+.acme-table tbody tr[aria-selected="true"]:hover { background: var(--blue-soft); }
+
+/* 10. Tabs: the current tab is blue with a 2px blue rule */
+.acme-tabs { display: flex; flex-wrap: wrap; gap: var(--space-4); border-bottom: 1px solid var(--rule); }
+.acme-tab {
+  padding: var(--space-2) 0;
+  border: none;
+  border-bottom: var(--stroke-rule) solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  font: 600 14px/1.45 var(--font-sans);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.acme-tab:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.acme-tab[aria-selected="true"] { color: var(--blue); border-bottom-color: var(--blue); }
+.acme-tab__count { margin-inline-start: var(--space-1); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+
+/* 11. Top bar: the 8px black bar, the product name, a 2px base rule */
+.acme-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: var(--space-2);
+  column-gap: var(--space-5);
+  min-block-size: 64px;
+  padding: var(--space-2) var(--space-5);
+  background: var(--paper);
+  border-top: var(--stroke-bar) solid var(--ink);
+  border-bottom: var(--stroke-rule) solid var(--ink);
+  color: var(--ink);
+}
+.acme-topbar__nav { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.acme-topbar__actions { display: flex; align-items: center; gap: var(--space-2); margin-inline-start: auto; }
+.acme-topbar__link {
+  padding: var(--space-1) 0;
+  border-bottom: var(--stroke-rule) solid transparent;
+  color: var(--ink);
+  font: 600 14px/1.45 var(--font-sans);
+  text-decoration: none;
+}
+.acme-topbar__link:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.acme-topbar__link[aria-current="page"],
+.acme-topbar__link[aria-current="page"]:hover { color: var(--blue); border-bottom-color: var(--blue); }
+
+/* 12. Breadcrumbs */
+.acme-breadcrumbs { display: flex; align-items: center; gap: var(--space-2); font-size: 14px; color: var(--ink-3); }
+.acme-breadcrumbs a { color: var(--blue); }
+.acme-breadcrumbs [aria-current="page"] { color: var(--ink); font-weight: 600; }
+
+/* 13. Modal: a square sheet with a 2px ink edge over a dark scrim */
+.acme-modal-backdrop {
+  position: fixed; inset: 0; display: grid; place-items: center;
+  padding: var(--space-5); background: rgb(17 17 17 / 0.6);
+}
+.acme-modal {
+  inline-size: min(30rem, 100%);
+  border: var(--stroke-rule) solid var(--ink);
+  border-top-width: var(--stroke-bar);
+  border-radius: 0;
+  background: var(--paper);
+}
+.acme-modal__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-4) 0; }
+.acme-modal__title { font: 700 28px/1.1 var(--font-sans); letter-spacing: -0.01em; margin: 0; }
+.acme-modal__body { padding: var(--space-3) var(--space-4) var(--space-4); color: var(--ink-2); font-size: 16px; }
+.acme-modal__body p:last-child { margin: 0; }
+.acme-modal__footer {
+  display: flex; justify-content: flex-end; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4); border-top: 1px solid var(--rule);
+}
